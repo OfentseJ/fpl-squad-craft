@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route, HashRouter } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
 import DarkModeToggle from "./components/DarkModeToggle";
@@ -47,7 +47,7 @@ export default function App() {
 
   return (
     <DarkModeContext.Provider value={{ dark, setDark }}>
-      <BrowserRouter>
+      <HashRouter>
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-200 transition-colors">
           <Navbar />
           <Routes>
@@ -58,7 +58,7 @@ export default function App() {
           </Routes>
           <DarkModeToggle />
         </div>
-      </BrowserRouter>
+      </HashRouter>
     </DarkModeContext.Provider>
   );
 }
