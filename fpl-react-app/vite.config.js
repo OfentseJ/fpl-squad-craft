@@ -6,13 +6,4 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: "/fpl-squad-craft",
-  server: {
-    proxy: {
-      "/api": {
-        target: "https://fantasy.premierleague.com",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, "api"),
-      },
-    },
-  },
 });
