@@ -195,7 +195,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Your Name - [@ofentsem4khutj4](https://twitter.com/ofentsem4khutj4)
 
-Project Link: [https://github.com/ofentsej/fpl-react-hub](https://github.com/YOUR_USERNAME/fpl-react-hub)
+Project Link: [https://github.com/ofentsej/fpl-squad-craft](https://github.com/YOUR_USERNAME/fpl-react-hub)
 
 ---
 
