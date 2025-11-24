@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Search, Users } from "lucide-react";
 import Pitch from "../components/Planner/Pitch"; // Ensure path is correct
+import { useFPLApi } from "../hooks/useFPLApi";
 
-// Formation Picker (Unchanged)
+// Formation Picker
 function FormationPicker({ formation, onChange }) {
   const formations = [
     { name: "3-4-3", def: 3, mid: 4, fwd: 3 },
@@ -23,7 +24,7 @@ function FormationPicker({ formation, onChange }) {
           className={`px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm rounded-lg font-semibold transition-all ${
             formation.name === f.name
               ? "bg-green-600 text-white shadow-md scale-105"
-              : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50"
+              : "bg-white dark:bg-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
           }`}
         >
           {f.name}
@@ -46,9 +47,9 @@ export default function Planner({ data }) {
     fwd: 2,
   });
   const [view, setView] = useState("pitch");
+  const { getShirtUrl } = useFPLApi();
 
-  // Helper: Check if a specific position is full in the SQUAD (Standard FPL limits)
-  // 2 GK, 5 DEF, 5 MID, 3 FWD
+  // Helper: Check if a specific position is full
   const isPositionFull = (elementType) => {
     const count = squad.filter((p) => p.element_type === elementType).length;
     if (elementType === 1) return count >= 2;
@@ -58,7 +59,7 @@ export default function Planner({ data }) {
     return false;
   };
 
-  // Helper: Check if a specific team limit is reached (Max 3)
+  // Helper: Check if a specific team limit is reached
   const isTeamFull = (teamId) => {
     return squad.filter((p) => p.team === teamId).length >= 3;
   };
@@ -68,7 +69,6 @@ export default function Planner({ data }) {
 
     // Filter Logic
     const selectedIds = squad.map((p) => p.id);
-    // We keep selected players OUT of the list
     let filtered = data.elements.filter((p) => !selectedIds.includes(p.id));
 
     filtered = filtered.filter((p) => {
@@ -87,21 +87,13 @@ export default function Planner({ data }) {
     });
 
     filtered.sort((a, b) => b.total_points - a.total_points);
-    setFilteredPlayers(filtered.slice(0, 50)); // Increased limit slightly
+    setFilteredPlayers(filtered.slice(0, 50));
   }, [data, searchTerm, selectedPosition, maxPrice, squad]);
 
   const addPlayer = (player) => {
     if (squad.length >= 15) return;
     if (isPositionFull(player.element_type)) return;
     if (isTeamFull(player.team)) return;
-
-    // Determine starting status logic (Simplified for now, Pitch handles visual placement)
-    // We just add them to the squad array. The Pitch component sorts them into Start/Bench based on array order + formation.
-    // To make the Pitch logic work best, we should add GKs to start, then DEFs, etc.
-    // But simplified: just add to array.
-    // NOTE: Standard FPL makes you pick 15, then you toggle starting.
-    // Here we assume the first X players of a type added are starting.
-
     setSquad([...squad, { ...player, starting: true, teams: data.teams }]);
   };
 
@@ -111,7 +103,6 @@ export default function Planner({ data }) {
 
   const handlePlaceholderClick = (positionId) => {
     setSelectedPosition(positionId.toString());
-    // On mobile, we might want to scroll to the list
     const listElement = document.getElementById("player-list-section");
     if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
   };
@@ -119,7 +110,7 @@ export default function Planner({ data }) {
   const totalCost = squad.reduce((sum, p) => sum + p.now_cost, 0) / 10;
 
   return (
-    <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans">
+    <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans dark:text-white">
       <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center flex items-center justify-center gap-2">
         <Users className="w-6 h-6 sm:w-8 sm:h-8" /> Squad Builder
       </h2>
@@ -166,7 +157,7 @@ export default function Planner({ data }) {
             className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${
               view === "pitch"
                 ? "bg-green-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
             }`}
           >
             Pitch
@@ -176,7 +167,7 @@ export default function Planner({ data }) {
             className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${
               view === "list"
                 ? "bg-green-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
             }`}
           >
             List
@@ -205,12 +196,14 @@ export default function Planner({ data }) {
               {squad.map((p) => (
                 <div
                   key={p.id}
-                  className="flex justify-between items-center p-3 bg-white rounded shadow border-l-4 border-green-500"
+                  className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded shadow border-l-4 border-green-500"
                 >
-                  <span className="font-bold">{p.web_name}</span>
+                  <span className="font-bold text-gray-800 dark:text-white">
+                    {p.web_name}
+                  </span>
                   <button
                     onClick={() => removePlayer(p.id)}
-                    className="text-red-500 text-sm underline"
+                    className="text-red-500 text-sm underline hover:text-red-400"
                   >
                     Remove
                   </button>
@@ -226,10 +219,12 @@ export default function Planner({ data }) {
           className="lg:col-span-1 order-2 lg:order-2"
         >
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden sticky top-4 border border-gray-100 dark:border-gray-700">
+            {/* Header & Filters */}
             <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="font-bold text-lg mb-3">Player Selection</h3>
+              <h3 className="font-bold text-lg mb-3 dark:text-white">
+                Player Selection
+              </h3>
 
-              {/* Filters */}
               <div className="space-y-3">
                 <div className="relative">
                   <Search
@@ -241,7 +236,7 @@ export default function Planner({ data }) {
                     placeholder="Search name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white dark:bg-gray-800 dark:text-white placeholder-gray-400"
                   />
                 </div>
 
@@ -249,7 +244,7 @@ export default function Planner({ data }) {
                   <select
                     value={selectedPosition}
                     onChange={(e) => setSelectedPosition(e.target.value)}
-                    className="flex-1 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                    className="flex-1 px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white dark:bg-gray-800 dark:text-white"
                   >
                     <option value="all">All Positions</option>
                     <option value="1">Goalkeepers</option>
@@ -257,8 +252,8 @@ export default function Planner({ data }) {
                     <option value="3">Midfielders</option>
                     <option value="4">Forwards</option>
                   </select>
-                  <div className="flex items-center gap-2 bg-gray-100 px-2 rounded-lg">
-                    <span className="text-xs whitespace-nowrap font-medium">
+                  <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-2 rounded-lg border border-transparent dark:border-gray-600">
+                    <span className="text-xs whitespace-nowrap font-medium dark:text-gray-300">
                       £{maxPrice}m
                     </span>
                     <input
@@ -275,10 +270,9 @@ export default function Planner({ data }) {
               </div>
             </div>
 
-            {/* List */}
-            <div className="max-h-[500px] overflow-y-auto p-2 space-y-1">
+            {/* List Items */}
+            <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 bg-white dark:bg-gray-800">
               {filteredPlayers.map((p) => {
-                // Check Disabling Logic
                 const posFull = isPositionFull(p.element_type);
                 const teamFull = isTeamFull(p.team);
                 const isDisabled = posFull || teamFull;
@@ -290,26 +284,26 @@ export default function Planner({ data }) {
                     disabled={isDisabled}
                     className={`w-full text-left p-2 sm:p-3 rounded-lg flex justify-between items-center transition-all border ${
                       isDisabled
-                        ? "bg-gray-50 opacity-50 cursor-not-allowed border-transparent grayscale"
-                        : "bg-white hover:bg-green-50 border-gray-100 cursor-pointer hover:border-green-200 hover:shadow-sm"
+                        ? "bg-gray-50 dark:bg-gray-800/50 opacity-50 cursor-not-allowed border-transparent grayscale"
+                        : "bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-900/20 border-gray-100 dark:border-gray-700 cursor-pointer hover:border-green-200 dark:hover:border-green-800 hover:shadow-sm"
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      {/* Kit Icon (Small) */}
                       <div className="w-6 h-6 relative">
                         <img
-                          src={`https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${
-                            data.teams.find((t) => t.id === p.team)?.code || 1
-                          }-66.png`}
+                          src={getShirtUrl(
+                            data.teams.find((t) => t.id === p.team) || [],
+                            p.element_type === 1
+                          )}
                           alt="kit"
                           className="object-contain"
                         />
                       </div>
                       <div>
-                        <div className="font-bold text-xs sm:text-sm text-gray-800">
+                        <div className="font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-100">
                           {p.web_name}
                         </div>
-                        <div className="text-[10px] sm:text-xs text-gray-500 flex gap-1">
+                        <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex gap-1">
                           <span>
                             {
                               data.teams.find((t) => t.id === p.team)
@@ -327,7 +321,7 @@ export default function Planner({ data }) {
                               : "FWD"}
                           </span>
                           {teamFull && (
-                            <span className="text-red-500 font-bold ml-1">
+                            <span className="text-red-500 dark:text-red-400 font-bold ml-1">
                               (Max 3)
                             </span>
                           )}
@@ -335,10 +329,10 @@ export default function Planner({ data }) {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-sm text-green-700">
+                      <div className="font-bold text-sm text-green-700 dark:text-green-400">
                         £{(p.now_cost / 10).toFixed(1)}
                       </div>
-                      <div className="text-[10px] text-gray-400">
+                      <div className="text-[10px] text-gray-400 dark:text-gray-500">
                         {p.total_points} pts
                       </div>
                     </div>

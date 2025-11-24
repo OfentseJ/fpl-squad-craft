@@ -38,5 +38,13 @@ export function useFPLApi() {
       "https://fantasy.premierleague.com/api/fixtures/"
     );
 
-  return { getBootstrap, getLive, getFixtures };
+  const getShirtUrl = (team, isGK) => {
+    const shirtUrl = `https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${
+      team?.code || 3
+    }${isGK ? "_1" : ""}-66.png`;
+
+    return shirtUrl;
+  };
+
+  return { getBootstrap, getLive, getFixtures, getShirtUrl };
 }
