@@ -1,45 +1,45 @@
 export default function PlayerShirt({ player, onClick, inPitch }) {
-  const photo = player.photo ? player.photo.replace(".jpg", "") : null;
-  const teams = player.teams;
+  const teams = player.teams || [];
   const isGK = player.element_type === 1;
   const team = teams.find((t) => t.id === player.team);
-  const playerImageUrl = photo
-    ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${photo}.png`
-    : null;
-  const shirtUrl = `https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${
-    team.code
-  }${isGK ? "_1" : ""}-110.png`;
 
+  const shirtUrl = `https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${
+    team?.code || 3
+  }${isGK ? "_1" : ""}-66.png`;
   return (
     <div
       onClick={onClick}
       className={`relative flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95 z-10 ${
-        inPitch ? "w-14 sm:w-16 md:w-20" : "w-12 sm:w-14"
+        inPitch
+          ? "w-10 sm:w-12 md:w-14 lg:w-16" // Significantly smaller widths
+          : "w-10 sm:w-12"
       }`}
     >
       {/* Player Shirt */}
-      <div className="relative mb-1">
+      <div className="relative -mb-1">
         <img
           src={shirtUrl}
-          alt={`${team?.short_name} ${isGK ? "GK" : ""} shirt`}
+          alt={`${team?.short_name || ""} shirt`}
           className={`${
             inPitch
-              ? "w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20"
-              : "w-12 h-12 sm:w-14 sm:h-14"
-          } object-contain`}
+              ? "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16"
+              : "w-10 h-10 sm:w-12 sm:h-12"
+          } object-contain drop-shadow-sm`}
         />
       </div>
 
-      {/* Player Info */}
+      {/* Player Info Box */}
       <div
-        className={`text-center bg-white dark:bg-gray-800 rounded px-1.5 py-0.5 sm:px-2 sm:py-1 shadow-md ${
-          inPitch ? "min-w-14 sm:min-w-16 md:min-w-20" : "min-w-12 sm:min-w-14"
+        className={`text-center bg-white dark:bg-gray-800 rounded-sm px-1 py-0.5 shadow-md z-20 ${
+          inPitch
+            ? "min-w-12 sm:min-w-14 md:min-w-16" // Tighter constraints
+            : "min-w-12 sm:min-w-14"
         }`}
       >
-        <div className="text-[10px] sm:text-xs font-semibold truncate max-w-[60px] sm:max-w-20">
+        <div className="text-[8px] sm:text-[10px] font-bold text-gray-900 dark:text-white leading-tight truncate max-w-[55px] sm:max-w-[70px]">
           {player.web_name}
         </div>
-        <div className="text-[9px] sm:text-xs text-gray-600 dark:text-gray-400">
+        <div className="text-[8px] sm:text-[9px] text-gray-600 dark:text-gray-400 leading-none mt-0.5">
           £{(player.now_cost / 10).toFixed(1)}m
         </div>
       </div>
