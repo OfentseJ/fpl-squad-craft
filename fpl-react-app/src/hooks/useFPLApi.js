@@ -28,7 +28,7 @@ export function useFPLApi() {
 
   const getLive = (gw) =>
     fetchWithCache(
-      `live-${gw}`,
+      "live-" + gw,
       `https://fantasy.premierleague.com/api/event/${gw}/live/`
     );
 
@@ -38,13 +38,30 @@ export function useFPLApi() {
       "https://fantasy.premierleague.com/api/fixtures/"
     );
 
+  // --- NEW HELPER FUNCTIONS ---
+
   const getShirtUrl = (team, isGK) => {
-    const shirtUrl = `https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${
+    return `https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${
       team?.code || 3
     }${isGK ? "_1" : ""}-66.png`;
-
-    return shirtUrl;
   };
 
-  return { getBootstrap, getLive, getFixtures, getShirtUrl };
+  const getPlayerImageUrl = (code) => {
+    if (!code) return null;
+    return `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png`;
+  };
+
+  const getTeamBadgeUrl = (teamCode) => {
+    if (!teamCode) return null;
+    return `https://resources.premierleague.com/premierleague/badges/t${teamCode}.png`;
+  };
+
+  return {
+    getBootstrap,
+    getLive,
+    getFixtures,
+    getShirtUrl,
+    getPlayerImageUrl,
+    getTeamBadgeUrl,
+  };
 }

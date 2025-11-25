@@ -108,6 +108,19 @@ export default function Planner({ data }) {
   };
 
   const totalCost = squad.reduce((sum, p) => sum + p.now_cost, 0) / 10;
+  const substitutePlayers = (player1Id, player2Id) => {
+    setSquad(
+      squad.map((p) => {
+        if (p.id === player1Id) {
+          return { ...p, starting: !p.starting };
+        }
+        if (p.id === player2Id) {
+          return { ...p, starting: !p.starting };
+        }
+        return p;
+      })
+    );
+  };
 
   return (
     <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans dark:text-white">
@@ -184,6 +197,7 @@ export default function Planner({ data }) {
               formation={formation}
               onRemovePlayer={removePlayer}
               onPlaceholderClick={handlePlaceholderClick}
+              onSubstitutePlayers={substitutePlayers}
             />
           ) : (
             <div className="space-y-2">
