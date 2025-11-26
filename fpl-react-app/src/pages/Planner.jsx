@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { Search, Users } from "lucide-react";
-import Pitch from "../components/Planner/Pitch"; // Ensure path is correct
+import { useState } from "react";
+import { Users } from "lucide-react";
+import Pitch from "../components/Planner/Pitch";
+import PlayerFilters from "../components/Planner/PlayerFilters"; // Import the new component
 import { useFPLApi } from "../hooks/useFPLApi";
 
 // Formation Picker
@@ -35,11 +36,11 @@ function FormationPicker({ formation, onChange }) {
 }
 
 export default function Planner({ data }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPosition, setSelectedPosition] = useState("all");
-  const [maxPrice, setMaxPrice] = useState(15);
+  // We removed local state for filtering (searchTerm, maxPrice, etc.)
   const [squad, setSquad] = useState([]);
-  const [filteredPlayers, setFilteredPlayers] = useState([]);
+  const [filteredPlayers, setFilteredPlayers] = useState([]); // This comes from PlayerFilters
+  const [activeSortMetric, setActiveSortMetric] = useState("total_points"); // To control list display
+
   const [formation, setFormation] = useState({
     name: "4-4-2",
     def: 4,
@@ -64,32 +65,6 @@ export default function Planner({ data }) {
     return squad.filter((p) => p.team === teamId).length >= 3;
   };
 
-  useEffect(() => {
-    if (!data?.elements) return;
-
-    // Filter Logic
-    const selectedIds = squad.map((p) => p.id);
-    let filtered = data.elements.filter((p) => !selectedIds.includes(p.id));
-
-    filtered = filtered.filter((p) => {
-      const matchesSearch =
-        p.web_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.second_name.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesPosition =
-        selectedPosition === "all" ||
-        p.element_type === parseInt(selectedPosition);
-
-      const matchesPrice = p.now_cost / 10 <= maxPrice;
-
-      return matchesSearch && matchesPosition && matchesPrice;
-    });
-
-    filtered.sort((a, b) => b.total_points - a.total_points);
-    setFilteredPlayers(filtered.slice(0, 50));
-  }, [data, searchTerm, selectedPosition, maxPrice, squad]);
-
   const addPlayer = (player) => {
     if (squad.length >= 15) return;
     if (isPositionFull(player.element_type)) return;
@@ -102,24 +77,45 @@ export default function Planner({ data }) {
   };
 
   const handlePlaceholderClick = (positionId) => {
-    setSelectedPosition(positionId.toString());
+    // Note: With the new PlayerFilters, if you want to auto-set the position filter
+    // you might need to lift the filter state back up or use a context/ref.
+    // For simplicity in this step, we just scroll to the list.
     const listElement = document.getElementById("player-list-section");
     if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
   };
 
   const totalCost = squad.reduce((sum, p) => sum + p.now_cost, 0) / 10;
+
   const substitutePlayers = (player1Id, player2Id) => {
     setSquad(
       squad.map((p) => {
-        if (p.id === player1Id) {
-          return { ...p, starting: !p.starting };
-        }
-        if (p.id === player2Id) {
-          return { ...p, starting: !p.starting };
-        }
+        if (p.id === player1Id) return { ...p, starting: !p.starting };
+        if (p.id === player2Id) return { ...p, starting: !p.starting };
         return p;
       })
     );
+  };
+
+  // Helper to display the correct metric value in the list
+  const getMetricDisplay = (player, metric) => {
+    if (metric === "now_cost") return `£${(player.now_cost / 10).toFixed(1)}m`;
+    if (metric === "selected_by_percent")
+      return `${player.selected_by_percent}%`;
+    return `${player[metric]} pts`; // Default label
+  };
+
+  // Label Map for UI
+  const metricLabels = {
+    total_points: "Total Pts",
+    event_points: "GW Pts",
+    now_cost: "Price",
+    selected_by_percent: "Sel %",
+    minutes: "Mins",
+    goals_scored: "Goals",
+    assists: "Assists",
+    clean_sheets: "CS",
+    form: "Form",
+    ict_index: "ICT",
   };
 
   return (
@@ -201,7 +197,6 @@ export default function Planner({ data }) {
             />
           ) : (
             <div className="space-y-2">
-              {/* Simplified List View of Selected Squad */}
               {squad.length === 0 && (
                 <div className="text-center text-gray-400 py-10">
                   No players selected.
@@ -233,56 +228,14 @@ export default function Planner({ data }) {
           className="lg:col-span-1 order-2 lg:order-2"
         >
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden sticky top-4 border border-gray-100 dark:border-gray-700">
-            {/* Header & Filters */}
-            <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="font-bold text-lg mb-3 dark:text-white">
-                Player Selection
-              </h3>
-
-              <div className="space-y-3">
-                <div className="relative">
-                  <Search
-                    size={16}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Search name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white dark:bg-gray-800 dark:text-white placeholder-gray-400"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <select
-                    value={selectedPosition}
-                    onChange={(e) => setSelectedPosition(e.target.value)}
-                    className="flex-1 px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="all">All Positions</option>
-                    <option value="1">Goalkeepers</option>
-                    <option value="2">Defenders</option>
-                    <option value="3">Midfielders</option>
-                    <option value="4">Forwards</option>
-                  </select>
-                  <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-2 rounded-lg border border-transparent dark:border-gray-600">
-                    <span className="text-xs whitespace-nowrap font-medium dark:text-gray-300">
-                      £{maxPrice}m
-                    </span>
-                    <input
-                      type="range"
-                      min="4"
-                      max="15"
-                      step="0.5"
-                      value={maxPrice}
-                      onChange={(e) => setMaxPrice(parseFloat(e.target.value))}
-                      className="w-16 accent-green-600"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* --- NEW FILTER COMPONENT --- */}
+            <PlayerFilters
+              allPlayers={data?.elements}
+              squad={squad}
+              teams={data?.teams}
+              onFilteredPlayersChange={setFilteredPlayers}
+              onSortMetricChange={setActiveSortMetric}
+            />
 
             {/* List Items */}
             <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 bg-white dark:bg-gray-800">
@@ -343,11 +296,12 @@ export default function Planner({ data }) {
                       </div>
                     </div>
                     <div className="text-right">
+                      {/* Dynamic Metric Display */}
                       <div className="font-bold text-sm text-green-700 dark:text-green-400">
-                        £{(p.now_cost / 10).toFixed(1)}
+                        {getMetricDisplay(p, activeSortMetric)}
                       </div>
                       <div className="text-[10px] text-gray-400 dark:text-gray-500">
-                        {p.total_points} pts
+                        {metricLabels[activeSortMetric] || "Pts"}
                       </div>
                     </div>
                   </button>

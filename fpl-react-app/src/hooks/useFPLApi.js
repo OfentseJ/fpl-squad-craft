@@ -38,17 +38,15 @@ export function useFPLApi() {
       "https://fantasy.premierleague.com/api/fixtures/"
     );
 
-  // --- NEW HELPER FUNCTIONS ---
-
   const getShirtUrl = (team, isGK) => {
     return `https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${
       team?.code || 3
     }${isGK ? "_1" : ""}-66.png`;
   };
 
-  const getPlayerImageUrl = (code) => {
-    if (!code) return null;
-    return `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png`;
+  const getPlayerImageUrl = (playerCode) => {
+    if (!playerCode) return null;
+    return `https://resources.premierleague.com/premierleague/photos/players/110x140/p${playerCode}.png`;
   };
 
   const getTeamBadgeUrl = (teamCode) => {

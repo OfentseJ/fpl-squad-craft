@@ -4,8 +4,6 @@ import { useFPLApi } from "../../hooks/useFPLApi";
 import { useEffect, useState } from "react";
 import PlayerDetailModal from "./PlayerDetailModal";
 
-// --- Sub-Components (Background & Placeholder) ---
-
 function HalfPitchBackground() {
   return (
     <div className="absolute inset-0 z-0 pointer-events-none bg-[#00b159]">
@@ -57,7 +55,6 @@ function Placeholder({ position, onClick }) {
   );
 }
 
-// --- Main Pitch Component ---
 export default function Pitch({
   squad,
   formation,
@@ -82,10 +79,7 @@ export default function Pitch({
     setSelectedPlayer(null);
   };
 
-  // Label Map for positions
   const labelMap = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
-
-  // --- LOGIC START ---
 
   // 1. Sort squad by type
   const allGKP = squad.filter((p) => p.element_type === 1);
@@ -112,23 +106,18 @@ export default function Pitch({
   // Reserve GK: The 2nd goalkeeper in the list (if exists)
   const reserveGK = allGKP[1] || null;
 
-  // Reserve Outfield: Anyone not in the starting XI slices
   const reserveOutfield = [
     ...allDEF.slice(formation.def),
     ...allMID.slice(formation.mid),
     ...allFWD.slice(formation.fwd),
   ];
 
-  // Construct Fixed Bench Layout: [GK, Sub1, Sub2, Sub3]
-  // Slot 0 is ALWAYS exclusive for GK.
   const benchSlots = [
-    reserveGK, // Index 0: Exclusive GK spot
-    reserveOutfield[0] || null, // Index 1: Outfield
-    reserveOutfield[1] || null, // Index 2: Outfield
-    reserveOutfield[2] || null, // Index 3: Outfield
+    reserveGK,
+    reserveOutfield[0] || null,
+    reserveOutfield[1] || null,
+    reserveOutfield[2] || null,
   ];
-
-  // --- LOGIC END ---
 
   return (
     <>
