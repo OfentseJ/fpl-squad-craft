@@ -2,7 +2,6 @@
 
 A modern Fantasy Premier League web application built with React, Vite, TailwindCSS, and the official FPL API.
 
-![FPL Hub](https://img.shields.io/badge/FPL-Hub-38003c?style=for-the-badge)
 ![React](https://img.shields.io/badge/React-18.3-61dafb?style=for-the-badge&logo=react)
 ![Vite](https://img.shields.io/badge/Vite-5.1-646cff?style=for-the-badge&logo=vite)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-4.1-06b6d4?style=for-the-badge&logo=tailwindcss)
@@ -12,12 +11,7 @@ A modern Fantasy Premier League web application built with React, Vite, Tailwind
 - 🏠 **Home Dashboard** - View current gameweek and quick stats
 - 📊 **Transfer Trends** - See most transferred in/out players with sorting options
 - ⚡ **Live Stats** - Real-time BPS, goals, assists, and points during matches
-- 🎯 **Squad Planner** - Build your team with advanced filters:
-  - Search by player name
-  - Filter by position (GKP, DEF, MID, FWD)
-  - Price range slider
-  - Budget tracker (£100m limit)
-  - Visual selection with up to 15 players
+- 🎯 **Squad Planner** - Build your team with advanced filters
 - 🌓 **Dark Mode** - Toggle between light and dark themes
 - 📱 **Fully Responsive** - Works on desktop, tablet, and mobile
 - 🔄 **Auto Gameweek Detection** - Automatically shows current/next gameweek
@@ -54,46 +48,6 @@ npm run dev
 4. **Open in browser**
 
 Navigate to `http://localhost:5173`
-
-## 📦 Project Structure
-
-```
-fpl-react-hub/
-│
-├── index.html
-├── vite.config.js
-├── tailwind.config.js
-├── package.json
-│
-├── src/
-│   ├── main.jsx                 # App entry point
-│   ├── App.jsx                  # Main app component
-│   ├── index.css                # Global styles
-│   │
-│   ├── components/              # Reusable components
-│   │   ├── Navbar.jsx
-│   │   ├── PlayerCard.jsx
-│   │   ├── LoadingSkeleton.jsx
-│   │   ├── ErrorDisplay.jsx
-│   │   └── DarkModeToggle.jsx
-│   │
-│   ├── pages/                   # Page components
-│   │   ├── Home.jsx
-│   │   ├── Trends.jsx
-│   │   ├── Live.jsx
-│   │   └── Planner.jsx
-│   │
-│   ├── hooks/                   # Custom hooks
-│   │   └── useFPLApi.js
-│   │
-│   ├── utils/                   # Utility functions
-│   │   └── gameweek.js
-│   │
-│   └── context/                 # React contexts
-│       └── DarkModeContext.jsx
-│
-└── public/                      # Static assets
-```
 
 ## 🛠️ Technologies Used
 
