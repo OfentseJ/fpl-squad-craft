@@ -9,6 +9,8 @@ export default function PlayerDetailModal({
   onClose,
   onRemove,
   onSubstitute,
+  isSquadView = true,
+  onAdd,
 }) {
   const [substituting, setSubstituting] = useState(false);
   const { getPlayerImageUrl, getTeamBadgeUrl } = useFPLApi();
@@ -45,7 +47,7 @@ export default function PlayerDetailModal({
         // Find opponent short name from player.teams array if available
         const opponent = player.teams?.find((t) => t.id === opponentId);
         const difficulty = isHome ? f.team_h_difficulty : f.team_a_difficulty;
-        const badge = getTeamBadgeUrl(opponent.code);
+        const badge = getTeamBadgeUrl(opponent?.code);
 
         return {
           event: f.event,
@@ -120,7 +122,7 @@ export default function PlayerDetailModal({
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="px-6 pt-6 flex-1 overflow-y-auto">
           {/* Key Stats Row */}
           <div className="grid grid-cols-3 gap-3 mb-6">
             <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl text-center border border-gray-100 dark:border-gray-700">
@@ -191,74 +193,79 @@ export default function PlayerDetailModal({
               )}
             </div>
           </div>
+          {isSquadView && (
+            <>
+              <hr className="border-gray-100 dark:border-gray-700 my-6" />
 
-          <hr className="border-gray-100 dark:border-gray-700 my-6" />
-
-          {/* Action Buttons */}
-          {substituting ? (
-            <div className="space-y-3 animate-fadeIn">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-bold dark:text-white">Switch with...</h4>
-                <button
-                  onClick={() => setSubstituting(false)}
-                  className="text-xs text-red-500 font-bold uppercase hover:underline"
-                >
-                  Cancel
-                </button>
-              </div>
-              {eligibleSubs.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  No substitutes available in this position.
-                </p>
+              {/* Action Buttons */}
+              {substituting ? (
+                <div className="space-y-3 animate-fadeIn pb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold dark:text-white">
+                      Switch with...
+                    </h4>
+                    <button
+                      onClick={() => setSubstituting(false)}
+                      className="text-xs text-red-500 font-bold uppercase hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {eligibleSubs.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      No substitutes available in this position.
+                    </p>
+                  ) : (
+                    eligibleSubs.map((sub) => (
+                      <button
+                        key={sub.id}
+                        onClick={() => {
+                          onSubstitute(player.id, sub.id);
+                          setSubstituting(false);
+                        }}
+                        className="w-full flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="font-bold text-sm dark:text-gray-200 group-hover:text-green-700 dark:group-hover:text-green-400">
+                            {sub.web_name}
+                          </div>
+                          {!sub.starting ? (
+                            <span className="text-[9px] bg-gray-200 text-gray-600 px-1 rounded font-bold">
+                              BENCH
+                            </span>
+                          ) : (
+                            <span className="text-[9px] bg-green-100 text-green-700 px-1 rounded font-bold">
+                              XI
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          £{(sub.now_cost / 10).toFixed(1)}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
               ) : (
-                eligibleSubs.map((sub) => (
+                <div className="grid grid-cols-2 gap-3 pb-6">
                   <button
-                    key={sub.id}
-                    onClick={() => {
-                      onSubstitute(player.id, sub.id);
-                      setSubstituting(false);
-                    }}
-                    className="w-full flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all group"
+                    onClick={() => setSubstituting(true)}
+                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 dark:shadow-none transition-all"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="font-bold text-sm dark:text-gray-200 group-hover:text-green-700 dark:group-hover:text-green-400">
-                        {sub.web_name}
-                      </div>
-                      {!sub.starting ? (
-                        <span className="text-[9px] bg-gray-200 text-gray-600 px-1 rounded font-bold">
-                          BENCH
-                        </span>
-                      ) : (
-                        <span className="text-[9px] bg-green-100 text-green-700 px-1 rounded font-bold">
-                          XI
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      £{(sub.now_cost / 10).toFixed(1)}
-                    </div>
+                    <ArrowLeftRight size={18} /> Switch
                   </button>
-                ))
+                  <button
+                    onClick={() => {
+                      onRemove(player.id);
+                      onClose();
+                    }}
+                    className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 py-3 rounded-xl font-bold transition-all border border-red-100 dark:border-red-900/50"
+                  >
+                    Remove
+                  </button>
+                </div>
               )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setSubstituting(true)}
-                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 dark:shadow-none transition-all"
-              >
-                <ArrowLeftRight size={18} /> Switch
-              </button>
-              <button
-                onClick={() => {
-                  onRemove(player.id);
-                  onClose();
-                }}
-                className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 py-3 rounded-xl font-bold transition-all border border-red-100 dark:border-red-900/50"
-              >
-                Remove
-              </button>
-            </div>
+            </>
           )}
         </div>
       </div>

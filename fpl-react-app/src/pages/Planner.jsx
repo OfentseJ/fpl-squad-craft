@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Info, Users } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters"; // Import the new component
 import { useFPLApi } from "../hooks/useFPLApi";
+import PlayerDetailModal from "../components/Planner/PlayerDetailModal";
 
 // Formation Picker
 function FormationPicker({ formation, onChange }) {
@@ -49,7 +50,13 @@ export default function Planner({ data }) {
   });
   const [view, setView] = useState("pitch");
   const [positionFilter, setPositionFilter] = useState("all");
-  const { getShirtUrl } = useFPLApi();
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [fixtures, setFixtures] = useState([]);
+  const { getShirtUrl, getFixtures } = useFPLApi();
+
+  useEffect(() => {
+    getFixtures().then((data) => setFixtures(data));
+  }, []);
 
   // Helper: Check if a specific position is full
   const isPositionFull = (elementType) => {
@@ -81,6 +88,10 @@ export default function Planner({ data }) {
     setPositionFilter(positionId);
     const listElement = document.getElementById("player-list-section");
     if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleSelectedPlayer = (player) => {
+    setSelectedPlayer({ ...player, teams: data.teams });
   };
 
   const totalCost = squad.reduce((sum, p) => sum + p.now_cost, 0) / 10;
@@ -296,13 +307,23 @@ export default function Planner({ data }) {
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      {/* Dynamic Metric Display */}
-                      <div className="font-bold text-sm text-green-700 dark:text-green-400">
-                        {getMetricDisplay(p, activeSortMetric)}
+                    <div className="flex flex-row gap-4 justify-center items-center">
+                      <div className="text-right">
+                        {/* Dynamic Metric Display */}
+                        <div className="font-bold text-sm text-green-700 dark:text-green-400">
+                          {getMetricDisplay(p, activeSortMetric)}
+                        </div>
+                        <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                          {metricLabels[activeSortMetric] || "Pts"}
+                        </div>
                       </div>
-                      <div className="text-[10px] text-gray-400 dark:text-gray-500">
-                        {metricLabels[activeSortMetric] || "Pts"}
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectedPlayer(p);
+                        }}
+                      >
+                        <Info size={16} className="text-blue-500" />
                       </div>
                     </div>
                   </button>
@@ -312,6 +333,30 @@ export default function Planner({ data }) {
           </div>
         </div>
       </div>
+      {selectedPlayer && (
+        <PlayerDetailModal
+          player={selectedPlayer}
+          squad={squad}
+          fixtures={fixtures}
+          onClose={() => setSelectedPlayer(null)}
+          onRemove={removePlayer}
+          onSubstitute={substitutePlayers}
+          isSquadView={false}
+        />
+      )}
+
+      <style>{`
+              @keyframes slideInRight {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+              }
+              @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              .animate-slideInRight { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+              .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+            `}</style>
     </div>
   );
 }
