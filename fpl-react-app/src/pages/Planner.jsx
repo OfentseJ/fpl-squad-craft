@@ -4,6 +4,7 @@ import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters"; // Import the new component
 import { useFPLApi } from "../hooks/useFPLApi";
 import PlayerDetailModal from "../components/Planner/PlayerDetailModal";
+import Footer from "../components/Footer";
 
 // Formation Picker
 function FormationPicker({ formation, onChange }) {
@@ -129,223 +130,224 @@ export default function Planner({ data }) {
   };
 
   return (
-    <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans dark:text-white">
-      <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center flex items-center justify-center gap-2">
-        <Users className="w-6 h-6 sm:w-8 sm:h-8" /> Squad Builder
-      </h2>
+    <>
+      <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans dark:text-white">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center flex items-center justify-center gap-2">
+          <Users className="w-6 h-6 sm:w-8 sm:h-8" /> Squad Builder
+        </h2>
 
-      {/* Summary Banner */}
-      <div className="bg-linear-to-r from-slate-800 to-slate-900 text-white p-4 rounded-xl mb-6 shadow-lg border-t-4 border-green-500">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <div className="text-xl sm:text-2xl font-bold">
-              {squad.length}/15
+        {/* Summary Banner */}
+        <div className="bg-linear-to-r from-slate-800 to-slate-900 text-white p-4 rounded-xl mb-6 shadow-lg border-t-4 border-green-500">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <div className="text-xl sm:text-2xl font-bold">
+                {squad.length}/15
+              </div>
+              <div className="text-[10px] sm:text-xs text-gray-400 uppercase">
+                Squad
+              </div>
             </div>
-            <div className="text-[10px] sm:text-xs text-gray-400 uppercase">
-              Squad
+            <div>
+              <div className="text-xl sm:text-2xl font-bold text-green-400">
+                £{totalCost.toFixed(1)}m
+              </div>
+              <div className="text-[10px] sm:text-xs text-gray-400 uppercase">
+                Cost
+              </div>
+            </div>
+            <div>
+              <div className="text-xl sm:text-2xl font-bold">
+                £{(100 - totalCost).toFixed(1)}m
+              </div>
+              <div className="text-[10px] sm:text-xs text-gray-400 uppercase">
+                Bank
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-xl sm:text-2xl font-bold text-green-400">
-              £{totalCost.toFixed(1)}m
-            </div>
-            <div className="text-[10px] sm:text-xs text-gray-400 uppercase">
-              Cost
-            </div>
+        </div>
+
+        {/* Formation & View Toggles */}
+        <div className="mb-6 space-y-4">
+          <div className="flex justify-center">
+            <FormationPicker formation={formation} onChange={setFormation} />
           </div>
-          <div>
-            <div className="text-xl sm:text-2xl font-bold">
-              £{(100 - totalCost).toFixed(1)}m
-            </div>
-            <div className="text-[10px] sm:text-xs text-gray-400 uppercase">
-              Bank
-            </div>
+
+          <div className="flex justify-center gap-2">
+            <button
+              onClick={() => setView("pitch")}
+              className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${
+                view === "pitch"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+            >
+              Pitch
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${
+                view === "list"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              }`}
+            >
+              List
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Formation & View Toggles */}
-      <div className="mb-6 space-y-4">
-        <div className="flex justify-center">
-          <FormationPicker formation={formation} onChange={setFormation} />
-        </div>
-
-        <div className="flex justify-center gap-2">
-          <button
-            onClick={() => setView("pitch")}
-            className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${
-              view === "pitch"
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-            }`}
-          >
-            Pitch
-          </button>
-          <button
-            onClick={() => setView("list")}
-            className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${
-              view === "list"
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-            }`}
-          >
-            List
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* LEFT COL: PITCH or LIST VIEW */}
-        <div className="lg:col-span-2 order-1 lg:order-1">
-          {view === "pitch" ? (
-            <Pitch
-              squad={squad}
-              formation={formation}
-              onRemovePlayer={removePlayer}
-              onPlaceholderClick={handlePlaceholderClick}
-              onSubstitutePlayers={substitutePlayers}
-            />
-          ) : (
-            <div className="space-y-2">
-              {squad.length === 0 && (
-                <div className="text-center text-gray-400 py-10">
-                  No players selected.
-                </div>
-              )}
-              {squad.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded shadow border-l-4 border-green-500"
-                >
-                  <span className="font-bold text-gray-800 dark:text-white">
-                    {p.web_name}
-                  </span>
-                  <button
-                    onClick={() => removePlayer(p.id)}
-                    className="text-red-500 text-sm underline hover:text-red-400"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT COL: PLAYER SELECTOR */}
-        <div
-          id="player-list-section"
-          className="lg:col-span-1 order-2 lg:order-2"
-        >
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden sticky top-4 border border-gray-100 dark:border-gray-700">
-            {/* --- NEW FILTER COMPONENT --- */}
-            <PlayerFilters
-              allPlayers={data?.elements}
-              squad={squad}
-              teams={data?.teams}
-              onFilteredPlayersChange={setFilteredPlayers}
-              onSortMetricChange={setActiveSortMetric}
-              positionFilter={positionFilter}
-              onPositionFilterChange={setPositionFilter}
-            />
-
-            {/* List Items */}
-            <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 bg-white dark:bg-gray-800">
-              {filteredPlayers.map((p) => {
-                const posFull = isPositionFull(p.element_type);
-                const teamFull = isTeamFull(p.team);
-                const isDisabled = posFull || teamFull;
-
-                return (
-                  <button
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* LEFT COL: PITCH or LIST VIEW */}
+          <div className="lg:col-span-2 order-1 lg:order-1">
+            {view === "pitch" ? (
+              <Pitch
+                squad={squad}
+                formation={formation}
+                onRemovePlayer={removePlayer}
+                onPlaceholderClick={handlePlaceholderClick}
+                onSubstitutePlayers={substitutePlayers}
+              />
+            ) : (
+              <div className="space-y-2">
+                {squad.length === 0 && (
+                  <div className="text-center text-gray-400 py-10">
+                    No players selected.
+                  </div>
+                )}
+                {squad.map((p) => (
+                  <div
                     key={p.id}
-                    onClick={() => !isDisabled && addPlayer(p)}
-                    disabled={isDisabled}
-                    className={`w-full text-left p-2 sm:p-3 rounded-lg flex justify-between items-center transition-all border ${
-                      isDisabled
-                        ? "bg-gray-50 dark:bg-gray-800/50 opacity-50 cursor-not-allowed border-transparent grayscale"
-                        : "bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-900/20 border-gray-100 dark:border-gray-700 cursor-pointer hover:border-green-200 dark:hover:border-green-800 hover:shadow-sm"
-                    }`}
+                    className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded shadow border-l-4 border-green-500"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 relative">
-                        <img
-                          src={getShirtUrl(
-                            data.teams.find((t) => t.id === p.team) || [],
-                            p.element_type === 1
-                          )}
-                          alt="kit"
-                          className="object-contain"
-                        />
-                      </div>
-                      <div>
-                        <div className="font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-100">
-                          {p.web_name}
+                    <span className="font-bold text-gray-800 dark:text-white">
+                      {p.web_name}
+                    </span>
+                    <button
+                      onClick={() => removePlayer(p.id)}
+                      className="text-red-500 text-sm underline hover:text-red-400"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT COL: PLAYER SELECTOR */}
+          <div
+            id="player-list-section"
+            className="lg:col-span-1 order-2 lg:order-2"
+          >
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden sticky top-4 border border-gray-100 dark:border-gray-700">
+              {/* --- NEW FILTER COMPONENT --- */}
+              <PlayerFilters
+                allPlayers={data?.elements}
+                squad={squad}
+                teams={data?.teams}
+                onFilteredPlayersChange={setFilteredPlayers}
+                onSortMetricChange={setActiveSortMetric}
+                positionFilter={positionFilter}
+                onPositionFilterChange={setPositionFilter}
+              />
+
+              {/* List Items */}
+              <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 bg-white dark:bg-gray-800">
+                {filteredPlayers.map((p) => {
+                  const posFull = isPositionFull(p.element_type);
+                  const teamFull = isTeamFull(p.team);
+                  const isDisabled = posFull || teamFull;
+
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => !isDisabled && addPlayer(p)}
+                      disabled={isDisabled}
+                      className={`w-full text-left p-2 sm:p-3 rounded-lg flex justify-between items-center transition-all border ${
+                        isDisabled
+                          ? "bg-gray-50 dark:bg-gray-800/50 opacity-50 cursor-not-allowed border-transparent grayscale"
+                          : "bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-900/20 border-gray-100 dark:border-gray-700 cursor-pointer hover:border-green-200 dark:hover:border-green-800 hover:shadow-sm"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 relative">
+                          <img
+                            src={getShirtUrl(
+                              data.teams.find((t) => t.id === p.team) || [],
+                              p.element_type === 1
+                            )}
+                            alt="kit"
+                            className="object-contain"
+                          />
                         </div>
-                        <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex gap-1">
-                          <span>
-                            {
-                              data.teams.find((t) => t.id === p.team)
-                                ?.short_name
-                            }
-                          </span>
-                          <span>•</span>
-                          <span>
-                            {p.element_type === 1
-                              ? "GKP"
-                              : p.element_type === 2
-                              ? "DEF"
-                              : p.element_type === 3
-                              ? "MID"
-                              : "FWD"}
-                          </span>
-                          {teamFull && (
-                            <span className="text-red-500 dark:text-red-400 font-bold ml-1">
-                              (Max 3)
+                        <div>
+                          <div className="font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-100">
+                            {p.web_name}
+                          </div>
+                          <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex gap-1">
+                            <span>
+                              {
+                                data.teams.find((t) => t.id === p.team)
+                                  ?.short_name
+                              }
                             </span>
-                          )}
+                            <span>•</span>
+                            <span>
+                              {p.element_type === 1
+                                ? "GKP"
+                                : p.element_type === 2
+                                ? "DEF"
+                                : p.element_type === 3
+                                ? "MID"
+                                : "FWD"}
+                            </span>
+                            {teamFull && (
+                              <span className="text-red-500 dark:text-red-400 font-bold ml-1">
+                                (Max 3)
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex flex-row gap-4 justify-center items-center">
-                      <div className="text-right">
-                        {/* Dynamic Metric Display */}
-                        <div className="font-bold text-sm text-green-700 dark:text-green-400">
-                          {getMetricDisplay(p, activeSortMetric)}
+                      <div className="flex flex-row gap-4 justify-center items-center">
+                        <div className="text-right">
+                          {/* Dynamic Metric Display */}
+                          <div className="font-bold text-sm text-green-700 dark:text-green-400">
+                            {getMetricDisplay(p, activeSortMetric)}
+                          </div>
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                            {metricLabels[activeSortMetric] || "Pts"}
+                          </div>
                         </div>
-                        <div className="text-[10px] text-gray-400 dark:text-gray-500">
-                          {metricLabels[activeSortMetric] || "Pts"}
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectedPlayer(p);
+                          }}
+                        >
+                          <Info size={16} className="text-blue-500" />
                         </div>
                       </div>
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelectedPlayer(p);
-                        }}
-                      >
-                        <Info size={16} className="text-blue-500" />
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      {selectedPlayer && (
-        <PlayerDetailModal
-          player={selectedPlayer}
-          squad={squad}
-          fixtures={fixtures}
-          onClose={() => setSelectedPlayer(null)}
-          onRemove={removePlayer}
-          onSubstitute={substitutePlayers}
-          isSquadView={false}
-        />
-      )}
+        {selectedPlayer && (
+          <PlayerDetailModal
+            player={selectedPlayer}
+            squad={squad}
+            fixtures={fixtures}
+            onClose={() => setSelectedPlayer(null)}
+            onRemove={removePlayer}
+            onSubstitute={substitutePlayers}
+            isSquadView={false}
+          />
+        )}
 
-      <style>{`
+        <style>{`
               @keyframes slideInRight {
                 from { transform: translateX(100%); }
                 to { transform: translateX(0); }
@@ -357,6 +359,8 @@ export default function Planner({ data }) {
               .animate-slideInRight { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
               .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
             `}</style>
-    </div>
+      </div>
+      <Footer />
+    </>
   );
 }

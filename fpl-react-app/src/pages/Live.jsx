@@ -3,6 +3,7 @@ import { useFPLApi } from "../hooks/useFPLApi";
 import { getCurrentGameweek } from "../utils/gameweek";
 import LoadingSkeleton from "../components/LoadingSkeleton";
 import ErrorDisplay from "../components/ErrorDisplay";
+import Footer from "../components/Footer";
 
 export default function Live({ data }) {
   const [liveData, setLiveData] = useState(null);
@@ -49,57 +50,62 @@ export default function Live({ data }) {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <h2 className="text-3xl font-bold mb-6">Live Gameweek {currentGW?.id}</h2>
+    <>
+      <div className="p-6 max-w-6xl mx-auto">
+        <h2 className="text-3xl font-bold mb-6">
+          Live Gameweek {currentGW?.id}
+        </h2>
 
-      <div className="space-y-3">
-        {liveData.map((p) => (
-          <div
-            key={p.id}
-            className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
-          >
-            <div>
-              <h3 className="font-semibold text-lg">{p.info.web_name}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {data.teams.find((t) => t.id === p.info.team)?.short_name}
-              </p>
-            </div>
+        <div className="space-y-3">
+          {liveData.map((p) => (
+            <div
+              key={p.id}
+              className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+            >
+              <div>
+                <h3 className="font-semibold text-lg">{p.info.web_name}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {data.teams.find((t) => t.id === p.info.team)?.short_name}
+                </p>
+              </div>
 
-            <div className="grid grid-cols-4 gap-6 text-center">
-              <div>
-                <div className="text-2xl font-bold text-green-600">
-                  {p.stats.total_points}
+              <div className="grid grid-cols-4 gap-6 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {p.stats.total_points}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Points
+                  </div>
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Points
+                <div>
+                  <div className="text-lg font-semibold">{p.stats.bps}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    BPS
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">{p.stats.bps}</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  BPS
+                <div>
+                  <div className="text-lg font-semibold">
+                    {p.stats.goals_scored || 0}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Goals
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">
-                  {p.stats.goals_scored || 0}
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Goals
-                </div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">
-                  {p.stats.assists || 0}
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Assists
+                <div>
+                  <div className="text-lg font-semibold">
+                    {p.stats.assists || 0}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Assists
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+      <Footer />
+    </>
   );
 }
