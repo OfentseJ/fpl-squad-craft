@@ -4,14 +4,14 @@ import { Search, RotateCcw, Filter } from "lucide-react";
 export default function PlayerFilters({
   allPlayers,
   squad,
-  teams,
   onFilteredPlayersChange,
   onSortMetricChange,
+  positionFilter,
+  onPositionFilterChange,
 }) {
   // Default States
   const defaultState = {
     search: "",
-    position: "all",
     maxPrice: 15,
     sort: "total_points",
   };
@@ -52,9 +52,9 @@ export default function PlayerFilters({
     }
 
     // 3. Filter by Position
-    if (filters.position !== "all") {
+    if (positionFilter !== "all") {
       result = result.filter(
-        (p) => p.element_type === parseInt(filters.position)
+        (p) => p.element_type === parseInt(positionFilter)
       );
     }
 
@@ -73,16 +73,28 @@ export default function PlayerFilters({
 
     // Pass data back to parent
     onFilteredPlayersChange(finalResult);
-    onSortMetricChange(filters.sort); // Tell parent what metric to display
-  }, [allPlayers, squad, filters, onFilteredPlayersChange, onSortMetricChange]);
+    onSortMetricChange(filters.sort);
+  }, [
+    allPlayers,
+    squad,
+    filters,
+    onFilteredPlayersChange,
+    onSortMetricChange,
+    positionFilter,
+  ]);
 
   // Handlers
   const handleChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    if (key === "position") {
+      onPositionFilterChange(value);
+    } else {
+      setFilters((prev) => ({ ...prev, [key]: value }));
+    }
   };
 
   const handleReset = () => {
     setFilters(defaultState);
+    onPositionFilterChange("all");
   };
 
   return (
@@ -118,7 +130,7 @@ export default function PlayerFilters({
         {/* Filters Row 1: Position & Sort */}
         <div className="grid grid-cols-2 gap-2">
           <select
-            value={filters.position}
+            value={positionFilter}
             onChange={(e) => handleChange("position", e.target.value)}
             className="px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white dark:bg-gray-800 dark:text-white"
           >

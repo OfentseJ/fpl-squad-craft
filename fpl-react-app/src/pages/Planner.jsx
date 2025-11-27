@@ -48,6 +48,7 @@ export default function Planner({ data }) {
     fwd: 2,
   });
   const [view, setView] = useState("pitch");
+  const [positionFilter, setPositionFilter] = useState("all");
   const { getShirtUrl } = useFPLApi();
 
   // Helper: Check if a specific position is full
@@ -77,9 +78,7 @@ export default function Planner({ data }) {
   };
 
   const handlePlaceholderClick = (positionId) => {
-    // Note: With the new PlayerFilters, if you want to auto-set the position filter
-    // you might need to lift the filter state back up or use a context/ref.
-    // For simplicity in this step, we just scroll to the list.
+    setPositionFilter(positionId);
     const listElement = document.getElementById("player-list-section");
     if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
   };
@@ -235,6 +234,8 @@ export default function Planner({ data }) {
               teams={data?.teams}
               onFilteredPlayersChange={setFilteredPlayers}
               onSortMetricChange={setActiveSortMetric}
+              positionFilter={positionFilter}
+              onPositionFilterChange={setPositionFilter}
             />
 
             {/* List Items */}

@@ -45,12 +45,14 @@ export default function PlayerDetailModal({
         // Find opponent short name from player.teams array if available
         const opponent = player.teams?.find((t) => t.id === opponentId);
         const difficulty = isHome ? f.team_h_difficulty : f.team_a_difficulty;
+        const badge = getTeamBadgeUrl(opponent.code);
 
         return {
           event: f.event,
           opponent: opponent?.short_name || "OPP",
           isHome,
           difficulty,
+          badge,
         };
       });
   };
@@ -167,6 +169,13 @@ export default function PlayerDetailModal({
                         fix.difficulty
                       )}`}
                     ></div>
+                    <div>
+                      <img
+                        src={fix.badge}
+                        alt={fix.opponent}
+                        className="w-10 h-10 object-contain drop-shadow-lg opacity-90 mb-1"
+                      />
+                    </div>
                     <div className="font-bold text-sm dark:text-gray-200">
                       {fix.opponent}
                     </div>
