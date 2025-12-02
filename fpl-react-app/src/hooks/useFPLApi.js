@@ -54,6 +54,42 @@ export function useFPLApi() {
     return `https://resources.premierleague.com/premierleague/badges/t${teamCode}.png`;
   };
 
+  // New function to import user team
+  const importUserTeam = async (teamId, gameweek) => {
+    try {
+      const url = `https://fantasy.premierleague.com/api/entry/${teamId}/event/${gameweek}/picks/`;
+      const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch team data. Please check the Team ID.");
+      }
+
+      const data = await response.json();
+      return data.picks; // Returns array of picks with element (player ID), position, multiplier, etc.
+    } catch (error) {
+      console.error("Import Team Error:", error);
+      throw error;
+    }
+  };
+
+  // Get team info (name, manager, etc.)
+  const getUserTeamInfo = async (teamId) => {
+    try {
+      const url = `https://fantasy.premierleague.com/api/entry/${teamId}/`;
+      const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch team info.");
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Get Team Info Error:", error);
+      throw error;
+    }
+  };
+
   return {
     getBootstrap,
     getLive,
@@ -61,5 +97,7 @@ export function useFPLApi() {
     getShirtUrl,
     getPlayerImageUrl,
     getTeamBadgeUrl,
+    importUserTeam,
+    getUserTeamInfo,
   };
 }
