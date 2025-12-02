@@ -65,14 +65,13 @@ export function useFPLApi() {
       }
 
       const data = await response.json();
-      return data.picks; // Returns array of picks with element (player ID), position, multiplier, etc.
+      return data.picks;
     } catch (error) {
       console.error("Import Team Error:", error);
       throw error;
     }
   };
 
-  // Get team info (name, manager, etc.)
   const getUserTeamInfo = async (teamId) => {
     try {
       const url = `https://fantasy.premierleague.com/api/entry/${teamId}/`;

@@ -14,7 +14,7 @@ export default function Live({ data }) {
   const currentGW = getCurrentGameweek(data?.events);
 
   useEffect(() => {
-    if (!currentGW?.id) return;
+    if (!currentGW?.id || !data?.elements) return;
 
     setLoading(true);
     setError(null);
@@ -37,7 +37,7 @@ export default function Live({ data }) {
         setError(err.message);
         setLoading(false);
       });
-  }, [currentGW, data]);
+  }, [currentGW?.id, data?.elements, getLive]);
 
   if (loading) return <LoadingSkeleton />;
   if (error) return <ErrorDisplay message={error} />;

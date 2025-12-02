@@ -37,7 +37,7 @@ export default function App() {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [getBootstrap]);
 
   if (loading) return <LoadingSkeleton />;
   if (error)
