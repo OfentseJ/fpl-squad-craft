@@ -7,7 +7,6 @@ import PlayerDetailModal from "./PlayerDetailModal";
 function HalfPitchBackground() {
   return (
     <div className="absolute inset-0 z-0 pointer-events-none bg-[#00b159]">
-      {/* Grass Pattern */}
       <div
         className="absolute inset-0 w-full h-full"
         style={{
@@ -15,7 +14,6 @@ function HalfPitchBackground() {
             "repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(0,0,0,0.05) 40px, rgba(0,0,0,0.05) 80px)",
         }}
       />
-      {/* SVG Pitch Lines */}
       <svg
         width="100%"
         height="100%"
@@ -57,12 +55,9 @@ function Placeholder({ position, onClick }) {
   );
 }
 
-// --- Main Component ---
-
 export default function Pitch({
   squad,
   formation,
-  showBench,
   onRemovePlayer,
   onPlaceholderClick,
   onSubstitutePlayers,
@@ -93,22 +88,22 @@ export default function Pitch({
   const allFWD = squad.filter((p) => p.element_type === 4);
 
   // 2. Determine STARTING XI
-  // Using the formation prop to determine how many slots to show
+  // We take the first X players of each type based on formation count
   const startGK = [allGKP[0] || null];
-
   const startDEF = Array(formation.def)
     .fill(null)
     .map((_, i) => allDEF[i] || null);
-
   const startMID = Array(formation.mid)
     .fill(null)
     .map((_, i) => allMID[i] || null);
-
   const startFWD = Array(formation.fwd)
     .fill(null)
     .map((_, i) => allFWD[i] || null);
 
-  // 3. Determine BENCH (Only calculated if needed, but safe to define always)
+  // 3. Determine BENCH
+  // The bench is strictly defined: Slot 0 is GKP, Slots 1-3 are Outfield
+
+  // Reserve GK: The 2nd goalkeeper in the list (if exists)
   const reserveGK = allGKP[1] || null;
 
   const reserveOutfield = [
@@ -126,7 +121,7 @@ export default function Pitch({
 
   return (
     <>
-      <div className="w-full mx-auto max-w-md sm:max-w-xl md:max-w-3xl transition-all duration-500">
+      <div className="w-full mx-auto max-w-md sm:max-w-xl md:max-w-3xl">
         {/* PITCH AREA */}
         <div className="relative w-full aspect-3/4 sm:aspect-4/3 rounded-xl overflow-hidden shadow-2xl border-4 border-white bg-[#00b159]">
           <HalfPitchBackground />
@@ -218,51 +213,49 @@ export default function Pitch({
           </div>
         </div>
 
-        {/* BENCH AREA - Conditionally Rendered */}
-        {showBench && (
-          <div className="mt-4 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border border-gray-200 dark:border-gray-700 animate-fadeIn">
-            <div className="text-[10px] font-bold text-center text-gray-400 uppercase tracking-widest mb-2">
-              Substitutes
-            </div>
-            <div className="flex justify-center gap-2 sm:gap-4">
-              {benchSlots.map((p, i) => {
-                // Determine Label
-                let label = "";
-                if (p) {
-                  label = labelMap[p.element_type];
-                } else {
-                  label = i === 0 ? "GKP" : "SUB";
-                }
-
-                return p ? (
-                  <div key={p.id} className="flex flex-col items-center">
-                    <div className="text-[8px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
-                      {label}
-                    </div>
-                    <PlayerShirt
-                      player={p}
-                      onClick={() => handlePlayerClick(p)}
-                      inPitch={false}
-                      fixtures={fixtures}
-                    />
-                  </div>
-                ) : (
-                  <div
-                    key={`bench-empty-${i}`}
-                    className="flex flex-col items-center"
-                  >
-                    <div className="text-[8px] font-bold text-gray-300 mb-1">
-                      {label}
-                    </div>
-                    <div className="w-12 h-16 sm:w-14 sm:h-18 md:w-16 md:h-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center">
-                      <span className="text-gray-300 text-[10px]">—</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        {/* BENCH AREA */}
+        <div className="mt-4 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border border-gray-200 dark:border-gray-700">
+          <div className="text-[10px] font-bold text-center text-gray-400 uppercase tracking-widest mb-2">
+            Substitutes
           </div>
-        )}
+          <div className="flex justify-center gap-2 sm:gap-4">
+            {benchSlots.map((p, i) => {
+              // Determine Label
+              let label = "";
+              if (p) {
+                label = labelMap[p.element_type]; // "GKP", "DEF", etc. if player exists
+              } else {
+                label = i === 0 ? "GKP" : "SUB"; // "GKP" for first slot, "SUB" for others if empty
+              }
+
+              return p ? (
+                <div key={p.id} className="flex flex-col items-center">
+                  <div className="text-[8px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                    {label}
+                  </div>
+                  <PlayerShirt
+                    player={p}
+                    onClick={() => handlePlayerClick(p)}
+                    inPitch={false}
+                    fixtures={fixtures}
+                  />
+                </div>
+              ) : (
+                <div
+                  key={`bench-empty-${i}`}
+                  className="flex flex-col items-center"
+                >
+                  <div className="text-[8px] font-bold text-gray-300 mb-1">
+                    {label}
+                  </div>
+                  <div className="w-12 h-16 sm:w-14 sm:h-18 md:w-16 md:h-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-300 text-[10px]">—</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {selectedPlayer && (
@@ -286,7 +279,7 @@ export default function Pitch({
           to { opacity: 1; }
         }
         .animate-slideInRight { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
       `}</style>
     </>
   );
