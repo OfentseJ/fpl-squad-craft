@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Info, Users, Save, RotateCcw, Download } from "lucide-react";
+import { Users, Save, RotateCcw, Download, XCircle, Info } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
-import { useFPLApi } from "../hooks/useFPLApi";
 import PlayerDetailModal from "../components/Planner/PlayerDetailModal";
 import ImportTeamModal from "../components/Planner/ImportTeamModal";
 import Footer from "../components/Footer";
+import { useFPLApi } from "../hooks/useFplApi";
 
 export default function Planner({ data }) {
   const [squad, setSquad] = useState([]);
@@ -16,12 +16,14 @@ export default function Planner({ data }) {
   const [isSaved, setIsSaved] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
+  // --- NEW: Substitution State ---
+  const [substitutionSource, setSubstitutionSource] = useState(null);
+
   const [view, setView] = useState("pitch");
   const [positionFilter, setPositionFilter] = useState("all");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [fixtures, setFixtures] = useState([]);
 
-  // Destructure the new importUserTeam hook
   const { getShirtUrl, getFixtures, importUserTeam } = useFPLApi();
 
   useEffect(() => {
@@ -47,12 +49,12 @@ export default function Planner({ data }) {
     if (isPositionFull(player.element_type)) return;
     if (isTeamFull(player.team)) return;
 
-    setIsSaved(false); // Edit mode
+    setIsSaved(false);
     setSquad([...squad, { ...player, starting: true, teams: data.teams }]);
   };
 
   const removePlayer = (playerId) => {
-    setIsSaved(false); // Edit mode
+    setIsSaved(false);
     setSquad(squad.filter((p) => p.id !== playerId));
   };
 
@@ -68,29 +70,100 @@ export default function Planner({ data }) {
 
   const totalCost = squad.reduce((sum, p) => sum + p.now_cost, 0) / 10;
 
-  const substitutePlayers = (player1Id, player2Id) => {
-    const newSquad = [...squad];
-    const index1 = newSquad.findIndex((p) => p.id === player1Id);
-    const index2 = newSquad.findIndex((p) => p.id === player2Id);
+  // --- NEW: Validation Logic for Substitutions ---
+  const isSubstitutionValid = (sourceId, targetId) => {
+    const sourceIndex = squad.findIndex((p) => p.id === sourceId);
+    const targetIndex = squad.findIndex((p) => p.id === targetId);
 
-    if (index1 !== -1 && index2 !== -1) {
+    if (sourceIndex === -1 || targetIndex === -1) return false;
+
+    const sourcePlayer = squad[sourceIndex];
+    const targetPlayer = squad[targetIndex];
+
+    // RULE 1: GK can only swap with GK
+    if (sourcePlayer.element_type === 1 && targetPlayer.element_type !== 1)
+      return false;
+    if (targetPlayer.element_type === 1 && sourcePlayer.element_type !== 1)
+      return false;
+
+    // If both are Starting XI (indices 0-10) or both are Bench (indices 11-14),
+    // swap is always valid because formation doesn't change
+    const isSourceStarter = sourceIndex < 11;
+    const isTargetStarter = targetIndex < 11;
+
+    if (isSourceStarter === isTargetStarter) return true;
+
+    // RULE 2: Formation Validation
+    // Create a temporary squad to simulate the swap
+    const tempSquad = [...squad];
+    // Perform swap in temp array
+    [tempSquad[sourceIndex], tempSquad[targetIndex]] = [
+      tempSquad[targetIndex],
+      tempSquad[sourceIndex],
+    ];
+
+    // Get the NEW starting XI (first 11 players)
+    const newStarters = tempSquad.slice(0, 11);
+
+    // Count positions
+    const defCount = newStarters.filter((p) => p.element_type === 2).length;
+    const midCount = newStarters.filter((p) => p.element_type === 3).length;
+    const fwdCount = newStarters.filter((p) => p.element_type === 4).length;
+
+    // FPL Minimum Requirements: 3 DEF, 2 MID, 1 FWD
+    if (defCount < 3) return false;
+    if (midCount < 2) return false;
+    if (fwdCount < 1) return false;
+
+    return true;
+  };
+
+  // --- NEW: Handlers ---
+  const handleSubstitutionStart = (playerId) => {
+    setSubstitutionSource(playerId);
+    setSelectedPlayer(null);
+  };
+
+  const handleSubstitutionComplete = (targetId) => {
+    if (!substitutionSource) return;
+
+    // If clicking self, cancel
+    if (substitutionSource === targetId) {
+      setSubstitutionSource(null);
+      return;
+    }
+
+    if (isSubstitutionValid(substitutionSource, targetId)) {
+      const newSquad = [...squad];
+      const index1 = newSquad.findIndex((p) => p.id === substitutionSource);
+      const index2 = newSquad.findIndex((p) => p.id === targetId);
+
       [newSquad[index1], newSquad[index2]] = [
         newSquad[index2],
         newSquad[index1],
       ];
+
       setSquad(newSquad);
+      setSubstitutionSource(null);
+      setIsSaved(true);
+    } else {
+      alert(
+        "Invalid substitution! Check formation rules (Min 3 DEF, 2 MID, 1 FWD)."
+      );
     }
+  };
+
+  const handleCancelSubstitution = () => {
+    setSubstitutionSource(null);
   };
 
   const handleSaveTeam = () => {
     if (squad.length === 15) {
-      // 1. Separate players by position
       const gks = squad.filter((p) => p.element_type === 1);
       const defs = squad.filter((p) => p.element_type === 2);
       const mids = squad.filter((p) => p.element_type === 3);
       const fwds = squad.filter((p) => p.element_type === 4);
 
-      // 2. Construct 4-4-2 Order for display default
       const startingXI = [
         gks[0],
         ...defs.slice(0, 4),
@@ -110,45 +183,38 @@ export default function Planner({ data }) {
     if (window.confirm("Are you sure you want to clear your team?")) {
       setSquad([]);
       setIsSaved(false);
+      setSubstitutionSource(null);
     }
   };
 
-  // --- UPDATED: Handle Import Logic using useFPLApi ---
   const handleImportTeam = async (teamId) => {
     try {
-      // Find current gameweek from data prop
       const currentEvent = data.events.find((e) => e.is_current)?.id || 1;
-
-      // Use the hook to fetch picks
       const picks = await importUserTeam(teamId, currentEvent);
 
       if (!picks || picks.length === 0) {
         throw new Error("No players found for this team ID.");
       }
 
-      // Map FPL picks (which only have IDs) to full player objects from our data
-      // The FPL API returns picks in order (1-15), where 1-11 are starters.
-      // This preserves the user's actual formation.
       const importedSquad = picks
         .map((pick) => {
           const playerDetails = data.elements.find(
             (e) => e.id === pick.element
           );
           if (!playerDetails) return null;
-          return { ...playerDetails, teams: data.teams }; // Add teams context
+          return { ...playerDetails, teams: data.teams };
         })
-        .filter(Boolean); // Remove nulls if any player not found
+        .filter(Boolean);
 
       if (importedSquad.length < 15) {
         throw new Error("Could not find all players in database");
       }
 
       setSquad(importedSquad);
-      setIsSaved(true); // Imported teams are always treated as "Saved/Complete"
+      setIsSaved(true);
       setView("pitch");
     } catch (err) {
       console.error("Import failed inside Planner:", err);
-      // Rethrow so the Modal can catch and display the error message
       throw err;
     }
   };
@@ -254,14 +320,18 @@ export default function Planner({ data }) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* LEFT COL: PITCH or LIST VIEW */}
-          <div className="lg:col-span-2 order-1 lg:order-1">
+          <div className="lg:col-span-2 order-1 lg:order-1 relative">
             {view === "pitch" ? (
               <Pitch
                 squad={squad}
                 saved={isSaved}
                 onRemovePlayer={removePlayer}
                 onPlaceholderClick={handlePlaceholderClick}
-                onSubstitutePlayers={substitutePlayers}
+                // Substitution props
+                substitutionSource={substitutionSource}
+                onSubstituteComplete={handleSubstitutionComplete}
+                isSubstitutionValid={isSubstitutionValid}
+                onPlayerSelect={handleSelectedPlayer}
               />
             ) : (
               <div className="space-y-2">
@@ -306,13 +376,7 @@ export default function Planner({ data }) {
             <div className="mt-4 flex justify-center sm:justify-end">
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="
-      group flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all duration-200
-      bg-white text-gray-700 border border-gray-200
-      hover:bg-gray-50 hover:text-green-700 hover:border-green-300 hover:shadow-md hover:-translate-y-0.5
-      dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700
-      dark:hover:bg-gray-750 dark:hover:text-green-400 dark:hover:border-green-600
-    "
+                className="group flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all duration-200 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:text-green-700 hover:border-green-300 hover:shadow-md hover:-translate-y-0.5 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-750 dark:hover:text-green-400 dark:hover:border-green-600"
               >
                 <div className="p-1.5 rounded-lg bg-gray-100 group-hover:bg-green-100 dark:bg-gray-700 dark:group-hover:bg-green-900/30 transition-colors">
                   <Download
@@ -328,7 +392,12 @@ export default function Planner({ data }) {
           {/* RIGHT COL: PLAYER SELECTOR */}
           <div
             id="player-list-section"
-            className="lg:col-span-1 order-2 lg:order-2"
+            // Apply blur and disable pointer events when subbing
+            className={`lg:col-span-1 order-2 lg:order-2 transition-all duration-300 ${
+              substitutionSource
+                ? "opacity-40 grayscale pointer-events-none"
+                : "opacity-100"
+            }`}
           >
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden sticky top-4 border border-gray-100 dark:border-gray-700">
               <PlayerFilters
@@ -341,7 +410,6 @@ export default function Planner({ data }) {
                 onPositionFilterChange={setPositionFilter}
               />
 
-              {/* List Items */}
               <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 bg-white dark:bg-gray-800">
                 {filteredPlayers.map((p) => {
                   const posFull = isPositionFull(p.element_type);
@@ -425,15 +493,26 @@ export default function Planner({ data }) {
           </div>
         </div>
 
+        {/* Global Cancel Substitution Button */}
+        {substitutionSource && (
+          <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center animate-bounce">
+            <button
+              onClick={handleCancelSubstitution}
+              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-red-700 border-2 border-white"
+            >
+              <XCircle size={20} /> Cancel Substitution
+            </button>
+          </div>
+        )}
+
         {/* Modals */}
         {selectedPlayer && (
           <PlayerDetailModal
             player={selectedPlayer}
-            squad={squad}
             fixtures={fixtures}
             onClose={() => setSelectedPlayer(null)}
             onRemove={removePlayer}
-            onSubstitute={substitutePlayers}
+            onSubstituteStart={handleSubstitutionStart}
             isSavedState={isSaved}
           />
         )}

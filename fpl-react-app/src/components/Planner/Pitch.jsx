@@ -1,10 +1,7 @@
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeftRight } from "lucide-react";
 import PlayerShirt from "./PlayerShirt";
 import { useEffect, useState, useMemo } from "react";
-import PlayerDetailModal from "./PlayerDetailModal";
-import { useFPLApi } from "../../hooks/useFPLApi";
-
-// --- Sub-components ---
+import { useFPLApi } from "../../hooks/useFplApi";
 
 function HalfPitchBackground() {
   return (
@@ -50,7 +47,7 @@ function Placeholder({ position, onClick, disabled }) {
       disabled={disabled}
       className={`group flex flex-col items-center justify-center transition-transform z-10 ${
         disabled
-          ? "opacity-50 cursor-not-allowed scale-95"
+          ? "opacity-30 cursor-not-allowed scale-95 grayscale"
           : "cursor-pointer hover:scale-105"
       }`}
     >
@@ -87,13 +84,16 @@ export default function Pitch({
   saved,
   onRemovePlayer,
   onPlaceholderClick,
-  onSubstitutePlayers,
+  // Substitution props
+  onSubstituteStart,
+  substitutionSource,
+  onSubstituteComplete,
+  isSubstitutionValid,
+  onPlayerSelect,
 }) {
   const [fixtures, setFixtures] = useState([]);
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
   const { getFixtures } = useFPLApi();
 
-  // 1. Fetch Fixtures (Fixed: Added dependency)
   useEffect(() => {
     let mounted = true;
     getFixtures().then((data) => {
@@ -104,26 +104,25 @@ export default function Pitch({
     };
   }, [getFixtures]);
 
-  const handlePlayerClick = (player) => setSelectedPlayer(player);
+  const handlePlayerClick = (player) => {
+    if (substitutionSource) {
+      onSubstituteComplete(player.id);
+      return;
+    }
 
-  const handleSubstitute = (player1Id, player2Id) => {
-    if (onSubstitutePlayers) onSubstitutePlayers(player1Id, player2Id);
-    setSelectedPlayer(null);
+    onPlayerSelect(player);
   };
 
   const labelMap = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
 
-  // 2. Organize Players based on "Saved" state
   const { pitchRows, benchPlayers } = useMemo(() => {
-    // Separate squad by type for Pre-Save logic
     const gk = squad.filter((p) => p.element_type === 1);
     const def = squad.filter((p) => p.element_type === 2);
     const mid = squad.filter((p) => p.element_type === 3);
     const fwd = squad.filter((p) => p.element_type === 4);
 
     if (!saved) {
-      // PRE-SAVE: Show all 15 slots on the pitch (2-5-5-3)
-      // We explicitly fill arrays to the max limit to render placeholders
+      // PRE-SAVE: Show all 15 slots
       return {
         pitchRows: [
           { type: 1, players: [...gk, ...Array(2 - gk.length).fill(null)] },
@@ -131,17 +130,13 @@ export default function Pitch({
           { type: 3, players: [...mid, ...Array(5 - mid.length).fill(null)] },
           { type: 4, players: [...fwd, ...Array(3 - fwd.length).fill(null)] },
         ],
-        benchPlayers: [], // No bench in pre-save
+        benchPlayers: [],
       };
     } else {
-      // POST-SAVE: Dynamic Formation
-      // We assume the Parent Component has sorted `squad` such that:
-      // Indices 0-10 = Starting XI
-      // Indices 11-14 = Bench
+      // POST-SAVE: Formation Logic
       const starters = squad.slice(0, 11);
       const subs = squad.slice(11, 15);
 
-      // Dynamically calculate formation based on who is in the Starting XI
       const startGK = starters.filter((p) => p.element_type === 1);
       const startDEF = starters.filter((p) => p.element_type === 2);
       const startMID = starters.filter((p) => p.element_type === 3);
@@ -159,27 +154,63 @@ export default function Pitch({
     }
   }, [squad, saved]);
 
-  // Helper to render a row of players/placeholders
+  // Helper to render a row
   const renderRow = (rowObj, rowIndex) => {
     return rowObj.players.map((p, i) => {
-      // Unique key generation to prevent React warnings
       const key = p
         ? `player-${p.id}`
         : `placeholder-${rowObj.type}-${rowIndex}-${i}`;
 
+      // --- LOGIC FOR VISUAL FEEDBACK ---
+      const isSubSource = substitutionSource === p?.id;
+
+      // If a source is selected, is this specific player a valid target?
+      let isValidTarget = true;
+      if (substitutionSource) {
+        if (!p) {
+          isValidTarget = false; // Cannot swap with empty slot
+        } else if (p.id === substitutionSource) {
+          isValidTarget = true; // Can click self to cancel
+        } else {
+          isValidTarget = isSubstitutionValid(substitutionSource, p.id);
+        }
+      }
+
       return p ? (
-        <PlayerShirt
+        <div
           key={key}
-          player={p}
-          onClick={() => handlePlayerClick(p)}
-          inPitch={true} // Always "in pitch" relative to this specific container
-          fixtures={fixtures}
-        />
+          className={`transition-all duration-300 ${
+            // Visual Styles based on state
+            isSubSource
+              ? "scale-110 ring-4 ring-yellow-400 rounded-full z-20"
+              : substitutionSource && !isValidTarget
+              ? "opacity-40 grayscale blur-[1px] cursor-not-allowed scale-95"
+              : substitutionSource
+              ? "cursor-pointer hover:scale-105 animate-pulse"
+              : ""
+          }`}
+        >
+          {/* Show Swap Icon if valid target */}
+          {substitutionSource && isValidTarget && !isSubSource && (
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-30 bg-yellow-400 text-black p-1 rounded-full shadow-md animate-bounce">
+              <ArrowLeftRight size={12} />
+            </div>
+          )}
+
+          <PlayerShirt
+            player={p}
+            onClick={() => isValidTarget && handlePlayerClick(p)}
+            inPitch={true}
+            fixtures={fixtures}
+          />
+        </div>
       ) : (
         <Placeholder
           key={key}
           position={labelMap[rowObj.type]}
           onClick={() => onPlaceholderClick(rowObj.type)}
+          // Disable placeholders during substitution
+          disabled={!!substitutionSource}
         />
       );
     });
@@ -193,40 +224,58 @@ export default function Pitch({
           <HalfPitchBackground />
 
           <div className="relative h-full flex flex-col justify-between py-4 sm:py-6 z-10 px-1 sm:px-4">
-            {/* Goalkeeper Row */}
+            {/* GK */}
             <div className="flex justify-center pt-1 sm:pt-2 gap-8">
               {renderRow(pitchRows[0], 0)}
             </div>
 
-            {/* Defender Row */}
+            {/* DEF */}
             <div className="flex justify-center items-center gap-2 sm:gap-6">
               {renderRow(pitchRows[1], 1)}
             </div>
 
-            {/* Midfielder Row */}
+            {/* MID */}
             <div className="flex justify-center items-center gap-2 sm:gap-6">
               {renderRow(pitchRows[2], 2)}
             </div>
 
-            {/* Forward Row */}
+            {/* FWD */}
             <div className="flex justify-center items-end gap-6 sm:gap-8 pb-2 sm:pb-4">
               {renderRow(pitchRows[3], 3)}
             </div>
           </div>
         </div>
 
-        {/* BENCH AREA (Only visible when Saved) */}
+        {/* BENCH AREA */}
         {saved && benchPlayers.length > 0 && (
-          <div className="mt-4 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border border-gray-200 dark:border-gray-700">
+          <div
+            className={`mt-4 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border border-gray-200 dark:border-gray-700 transition-colors ${
+              substitutionSource
+                ? "ring-2 ring-yellow-400 bg-yellow-50 dark:bg-gray-800"
+                : ""
+            }`}
+          >
             <div className="text-[10px] font-bold text-center text-gray-400 uppercase tracking-widest mb-2">
               Substitutes
             </div>
             <div className="flex justify-center gap-2 sm:gap-4">
               {benchPlayers.map((p, i) => {
-                // Determine accurate label
                 let label = "SUB";
                 if (p) label = labelMap[p.element_type];
-                else if (i === 0) label = "GKP"; // Slot 1 is always GKP
+                else if (i === 0) label = "GKP";
+
+                // --- BENCH LOGIC VISUALS ---
+                const isSubSource = substitutionSource === p?.id;
+                let isValidTarget = true;
+                if (substitutionSource) {
+                  if (!p) isValidTarget = false;
+                  else if (p.id === substitutionSource) isValidTarget = true;
+                  else
+                    isValidTarget = isSubstitutionValid(
+                      substitutionSource,
+                      p.id
+                    );
+                }
 
                 return (
                   <div
@@ -237,14 +286,33 @@ export default function Pitch({
                       {label}
                     </div>
                     {p ? (
-                      <PlayerShirt
-                        player={p}
-                        onClick={() => handlePlayerClick(p)}
-                        inPitch={false}
-                        fixtures={fixtures}
-                      />
+                      <div
+                        className={`transition-all duration-300 ${
+                          isSubSource
+                            ? "scale-110 ring-4 ring-yellow-400 rounded-full z-20"
+                            : substitutionSource && !isValidTarget
+                            ? "opacity-40 grayscale blur-[1px] cursor-not-allowed scale-95"
+                            : substitutionSource
+                            ? "cursor-pointer hover:scale-105 animate-pulse"
+                            : ""
+                        }`}
+                      >
+                        {/* Swap Icon for Bench too */}
+                        {substitutionSource &&
+                          isValidTarget &&
+                          !isSubSource && (
+                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-30 bg-yellow-400 text-black p-1 rounded-full shadow-md animate-bounce">
+                              <ArrowLeftRight size={12} />
+                            </div>
+                          )}
+                        <PlayerShirt
+                          player={p}
+                          onClick={() => isValidTarget && handlePlayerClick(p)}
+                          inPitch={false}
+                          fixtures={fixtures}
+                        />
+                      </div>
                     ) : (
-                      // Fallback if bench has empty slots (shouldn't happen in saved state usually)
                       <div className="w-12 h-16 sm:w-14 sm:h-18 md:w-16 md:h-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center">
                         <span className="text-gray-300 text-[10px]">—</span>
                       </div>
@@ -256,18 +324,6 @@ export default function Pitch({
           </div>
         )}
       </div>
-
-      {selectedPlayer && (
-        <PlayerDetailModal
-          player={selectedPlayer}
-          squad={squad}
-          fixtures={fixtures}
-          onClose={() => setSelectedPlayer(null)}
-          onRemove={onRemovePlayer}
-          onSubstitute={handleSubstitute}
-          isSavedState={saved}
-        />
-      )}
     </>
   );
 }
