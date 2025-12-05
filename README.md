@@ -147,7 +147,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Contact
 
-Your Name - [@ofentsem4khutj4](https://twitter.com/ofentsem4khutj4)
+Ofentse Makhutja - [@ofentsem4khutj4](https://twitter.com/ofentsem4khutj4)
 
 Project Link: [https://github.com/ofentsej/fpl-squad-craft](https://github.com/ofentsej/fpl-squad-craft)
 
