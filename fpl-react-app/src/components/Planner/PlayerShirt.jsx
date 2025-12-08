@@ -1,4 +1,4 @@
-import { useFPLApi } from "../../hooks/useFPLApi";
+import { useFPLApi } from "../../hooks/useFplApi";
 
 export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
   const teams = player.teams || [];
