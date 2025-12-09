@@ -118,6 +118,10 @@ export default function Planner({ data }) {
     return true;
   };
 
+  const isSelectedPlayerInSquad = selectedPlayer
+    ? squad.some((p) => p.id === selectedPlayer.id)
+    : false;
+
   // --- NEW: Handlers ---
   const handleSubstitutionStart = (playerId) => {
     setSubstitutionSource(playerId);
@@ -202,7 +206,12 @@ export default function Planner({ data }) {
             (e) => e.id === pick.element
           );
           if (!playerDetails) return null;
-          return { ...playerDetails, teams: data.teams };
+          return {
+            ...playerDetails,
+            teams: data.teams,
+            is_captain: pick.is_captain,
+            is_vice_captain: pick.is_vice_captain,
+          };
         })
         .filter(Boolean);
 
@@ -217,6 +226,26 @@ export default function Planner({ data }) {
       console.error("Import failed inside Planner:", err);
       throw err;
     }
+  };
+
+  const handleSetCaptain = (playerId) => {
+    const newSquad = squad.map((p) => ({
+      ...p,
+      is_captain: p.id === playerId,
+      is_vice_captain: p.id === playerId ? false : p.is_vice_captain,
+    }));
+    setSquad(newSquad);
+    setSelectedPlayer(null);
+  };
+
+  const handleSetViceCaptain = (playerId) => {
+    const newSquad = squad.map((p) => ({
+      ...p,
+      is_vice_captain: p.id === playerId,
+      is_captain: p.id === playerId ? false : p.is_captain,
+    }));
+    setSquad(newSquad);
+    setSelectedPlayer(null);
   };
 
   const getMetricDisplay = (player, metric) => {
@@ -514,6 +543,12 @@ export default function Planner({ data }) {
             onRemove={removePlayer}
             onSubstituteStart={handleSubstitutionStart}
             isSavedState={isSaved}
+            // Modal Actions
+            inSquad={isSelectedPlayerInSquad}
+            isCaptain={selectedPlayer.is_captain}
+            isViceCaptain={selectedPlayer.is_vice_captain}
+            onSetCaptain={handleSetCaptain}
+            onSetViceCaptain={handleSetViceCaptain}
           />
         )}
 

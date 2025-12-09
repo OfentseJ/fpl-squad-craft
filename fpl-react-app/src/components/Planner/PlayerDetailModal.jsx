@@ -1,14 +1,18 @@
-import { X, ArrowLeftRight, CalendarDays } from "lucide-react";
+import { X, ArrowLeftRight, CalendarDays, Crown, Medal } from "lucide-react";
 import { useFPLApi } from "../../hooks/useFplApi";
 
 export default function PlayerDetailModal({
   player,
-  squad,
   fixtures,
   onClose,
   onRemove,
   onSubstituteStart,
   isSavedState = false,
+  inSquad,
+  isCaptain,
+  isViceCaptain,
+  onSetCaptain,
+  onSetViceCaptain,
 }) {
   const { getPlayerImageUrl, getTeamBadgeUrl } = useFPLApi();
   const positionMap = {
@@ -56,6 +60,9 @@ export default function PlayerDetailModal({
     if (difficulty === 4) return "bg-red-500";
     return "bg-red-800";
   };
+
+  console.log(isSavedState);
+  console.log(inSquad);
 
   return (
     <>
@@ -134,7 +141,6 @@ export default function PlayerDetailModal({
               </div>
             </div>
           </div>
-
           {/* Fixture Ticker */}
           <div className="mb-6">
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
@@ -178,24 +184,55 @@ export default function PlayerDetailModal({
             </div>
           </div>
 
-          {/* Actions - Only visible if we are in "Saved" (Pitch) mode or standard mode, 
-              but usually substitutes are only relevant in Saved mode. 
-              However, you might want to switch positions pre-save too. */}
           <hr className="border-gray-100 dark:border-gray-700 my-6" />
+          {/*Captaincy*/}
+          {inSquad && (
+            <div className="mb-6">
+              <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                <Crown size={16} className="text-yellow-500" /> Captaincy
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => onSetCaptain(player.id)}
+                  className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all border ${
+                    isCaptain
+                      ? "bg-yellow-500 text-white border-yellow-600 shadow-md ring-2 ring-yellow-200 dark:ring-yellow-900"
+                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                  }`}
+                >
+                  <Crown size={16} fill={isCaptain ? "currentColor" : "none"} />
+                  {isCaptain ? "Captain" : "Make Captain"}
+                </button>
 
-          <div className="grid grid-cols-2 gap-3 pb-6">
-            {/* SUBSTITUTE BUTTON */}
-            {/* We show this if the team is saved OR if there are enough players to swap. 
-                For now, let's always show it if it's "Pitch View" */}
-            <button
-              onClick={() => onSubstituteStart(player.id)}
-              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 dark:shadow-none transition-all"
-            >
-              <ArrowLeftRight size={18} /> Substitute
-            </button>
+                <button
+                  onClick={() => onSetViceCaptain(player.id)}
+                  className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all border ${
+                    isViceCaptain
+                      ? "bg-gray-400 text-white border-gray-500 shadow-md ring-2 ring-gray-200 dark:ring-gray-700"
+                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <Crown
+                    size={16}
+                    fill={isViceCaptain ? "currentColor" : "none"}
+                  />
+                  {isViceCaptain ? "Vice-Captain" : "Make VC"}
+                </button>
+              </div>
+            </div>
+          )}
 
-            {/* REMOVE BUTTON (Only if not in saved mode, per your previous logic) */}
-            {!isSavedState && (
+          {/* Actions Section */}
+          {inSquad && (
+            <div className="grid grid-cols-2 gap-3 pb-6">
+              {isSavedState && (
+                <button
+                  onClick={() => onSubstituteStart(player.id)}
+                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 dark:shadow-none transition-all"
+                >
+                  <ArrowLeftRight size={18} /> Substitute
+                </button>
+              )}
               <button
                 onClick={() => {
                   onRemove(player.id);
@@ -205,8 +242,14 @@ export default function PlayerDetailModal({
               >
                 Remove
               </button>
-            )}
-          </div>
+            </div>
+          )}
+          {/* Optional: Message if looking at a player from the list who isn't owned */}
+          {!inSquad && (
+            <div className="pb-6 text-center text-gray-500 italic text-sm">
+              Add this player to your squad to enable actions.
+            </div>
+          )}
         </div>
       </div>
     </>

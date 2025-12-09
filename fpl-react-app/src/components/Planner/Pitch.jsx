@@ -85,7 +85,6 @@ export default function Pitch({
   onRemovePlayer,
   onPlaceholderClick,
   // Substitution props
-  onSubstituteStart,
   substitutionSource,
   onSubstituteComplete,
   isSubstitutionValid,
@@ -182,7 +181,7 @@ export default function Pitch({
           className={`transition-all duration-300 ${
             // Visual Styles based on state
             isSubSource
-              ? "scale-110 ring-4 ring-yellow-400 rounded-full z-20"
+              ? "scale-110 ring-4 border-yellow-400 rounded-full z-20"
               : substitutionSource && !isValidTarget
               ? "opacity-40 grayscale blur-[1px] cursor-not-allowed scale-95"
               : substitutionSource
@@ -251,7 +250,7 @@ export default function Pitch({
           <div
             className={`mt-4 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border border-gray-200 dark:border-gray-700 transition-colors ${
               substitutionSource
-                ? "ring-2 ring-yellow-400 bg-yellow-50 dark:bg-gray-800"
+                ? "border-2 border-yellow-400 bg-yellow-50 dark:bg-gray-800"
                 : ""
             }`}
           >
@@ -289,7 +288,7 @@ export default function Pitch({
                       <div
                         className={`transition-all duration-300 ${
                           isSubSource
-                            ? "scale-110 ring-4 ring-yellow-400 rounded-full z-20"
+                            ? "scale-110 border-4 border-yellow-400 rounded-full z-20"
                             : substitutionSource && !isValidTarget
                             ? "opacity-40 grayscale blur-[1px] cursor-not-allowed scale-95"
                             : substitutionSource
