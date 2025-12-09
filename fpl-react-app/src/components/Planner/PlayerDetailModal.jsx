@@ -61,9 +61,6 @@ export default function PlayerDetailModal({
     return "bg-red-800";
   };
 
-  console.log(isSavedState);
-  console.log(inSquad);
-
   return (
     <>
       {/* Backdrop */}

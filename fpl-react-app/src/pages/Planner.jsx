@@ -229,21 +229,61 @@ export default function Planner({ data }) {
   };
 
   const handleSetCaptain = (playerId) => {
-    const newSquad = squad.map((p) => ({
-      ...p,
-      is_captain: p.id === playerId,
-      is_vice_captain: p.id === playerId ? false : p.is_vice_captain,
-    }));
+    // 1. Check if the player we are promoting is currently the Vice Captain
+    const targetIsCurrentVC = squad.find(
+      (p) => p.id === playerId
+    )?.is_vice_captain;
+
+    const newSquad = squad.map((p) => {
+      // Logic for the Player getting the Armband
+      if (p.id === playerId) {
+        return { ...p, is_captain: true, is_vice_captain: false };
+      }
+
+      // Logic for the OLD Captain
+      if (p.is_captain) {
+        return {
+          ...p,
+          is_captain: false,
+          // If the new Captain was the VC, the old Captain swaps to become VC.
+          // Otherwise, they just lose the armband.
+          is_vice_captain: targetIsCurrentVC,
+        };
+      }
+
+      // Logic for everyone else (maintain their status)
+      return p;
+    });
+
     setSquad(newSquad);
     setSelectedPlayer(null);
   };
 
   const handleSetViceCaptain = (playerId) => {
-    const newSquad = squad.map((p) => ({
-      ...p,
-      is_vice_captain: p.id === playerId,
-      is_captain: p.id === playerId ? false : p.is_captain,
-    }));
+    // Check if the player we are making VC is currently the Captain
+    const targetIsCurrentCaptain = squad.find(
+      (p) => p.id === playerId
+    )?.is_captain;
+
+    const newSquad = squad.map((p) => {
+      // Logic for the Player becoming VC
+      if (p.id === playerId) {
+        return { ...p, is_vice_captain: true, is_captain: false };
+      }
+
+      // Logic for the OLD Vice Captain
+      if (p.is_vice_captain) {
+        return {
+          ...p,
+          is_vice_captain: false,
+          // If the new VC was the Captain, the old VC swaps to become Captain.
+          is_captain: targetIsCurrentCaptain,
+        };
+      }
+
+      return p;
+    });
+
     setSquad(newSquad);
     setSelectedPlayer(null);
   };

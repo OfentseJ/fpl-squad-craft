@@ -8,11 +8,14 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
 
   const shirtUrl = getShirtUrl(team, isGK);
 
+  // Captaincy Flags
+  const isCaptain = player.is_captain;
+  const isViceCaptain = player.is_vice_captain;
+
   // Get next opponent from fixtures
   const getNextOpponent = () => {
     if (!fixtures || fixtures.length === 0) return "—";
 
-    // Find next fixture for this player's team
     const nextFixture = fixtures.find(
       (f) =>
         !f.finished && (f.team_h === player.team || f.team_a === player.team)
@@ -26,7 +29,6 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
 
     if (!opponentTeam) return "—";
 
-    // Capitalize if home, lowercase if away
     return isHome
       ? opponentTeam.short_name.toUpperCase()
       : opponentTeam.short_name.toLowerCase();
@@ -35,34 +37,35 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
   return (
     <div
       onClick={onClick}
-      className={
-        "relative flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95 z-10 w-12 sm:w-14 md:w-16 lg:w-20"
-      }
+      className="relative flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95 z-10 w-16 sm:w-20 md:w-24"
     >
-      {/* Player Shirt */}
-      <div className="bg-slate-500/50 backdrop-filter backdrop-blur border-slate-600 border rounded-md pt-1.25 ">
-        <div className="-mb-6 ">
+      <div className="relative bg-slate-500/50 backdrop-filter backdrop-blur border-slate-500 border rounded-md pt-1.5 w-full flex flex-col items-center">
+        {(isCaptain || isViceCaptain) && (
+          <div className="absolute -top-2 -right-2 bg-black text-white text-[9px] sm:text-[10px] font-black w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full border border-white z-30 shadow-sm">
+            {isCaptain ? "C" : "V"}
+          </div>
+        )}
+
+        <div className="-mb-4 sm:-mb-5 z-10">
           <img
             src={shirtUrl}
             alt={`${team?.short_name || ""} shirt`}
-            className={
-              "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 object-contain drop-shadow-sm"
-            }
+            className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 object-contain drop-shadow-sm"
           />
         </div>
 
         {/* Player Info Box */}
         <div
-          className={`relative text-center bg-white dark:bg-gray-800 rounded-sm px-1 py-0.5 shadow-md z-20 border border-gray-100 dark:border-gray-700 ${
+          className={`relative text-center bg-white dark:bg-gray-800 rounded-sm px-1 py-0.5 shadow-md z-20 border border-gray-100 dark:border-gray-700 w-[95%] sm:w-full ${
             inPitch
-              ? "min-w-[52px] sm:min-w-[60px] md:min-w-[70px]"
-              : "min-w-[52px] sm:min-w-[60px]"
+              ? "min-w-[60px] sm:min-w-[70px] md:min-w-20"
+              : "min-w-[60px] sm:min-w-[70px]"
           }`}
         >
-          <div className="text-[9px] sm:text-[10px] md:text-xs font-bold text-gray-900 dark:text-white leading-tight truncate max-w-[50px] sm:max-w-[65px] md:max-w-20 mx-auto">
+          <div className="text-[10px] sm:text-xs font-bold text-gray-900 dark:text-white leading-tight truncate px-0.5">
             {player.web_name}
           </div>
-          <div className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-600 dark:text-gray-400 leading-none mt-0.5">
+          <div className="text-[9px] sm:text-[10px] text-gray-600 dark:text-gray-400 leading-none mt-0.5">
             {getNextOpponent()}
           </div>
         </div>
