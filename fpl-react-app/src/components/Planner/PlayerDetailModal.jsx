@@ -231,42 +231,43 @@ export default function PlayerDetailModal({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => onSetCaptain(player.id)}
-                  className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all border ${
-                    isBench
-                      ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed grayscale opacity-60"
-                      : isCaptain
-                      ? "bg-yellow-500 text-white border-yellow-600 shadow-md ring-2 ring-yellow-200 dark:ring-yellow-900"
-                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
-                  }`}
-                >
-                  <Crown
-                    size={16}
-                    fill={isCaptain && !isBench ? "currentColor" : "none"}
-                  />
-                  {isCaptain ? "Captain" : "Make Captain"}
-                </button>
+              {!isBench && (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => onSetCaptain(player.id)}
+                    className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all border ${
+                      isBench
+                        ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed grayscale opacity-60"
+                        : isCaptain
+                        ? "bg-yellow-500 text-white border-yellow-600 shadow-md ring-2 ring-yellow-200 dark:ring-yellow-900"
+                        : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                    }`}
+                  >
+                    <Crown
+                      size={16}
+                      fill={isCaptain && !isBench ? "currentColor" : "none"}
+                    />
+                    {isCaptain ? "Captain" : "Make Captain"}
+                  </button>
 
-                <button
-                  onClick={() => onSetViceCaptain(player.id)}
-                  disabled={isBench}
-                  className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all border ${
-                    isBench
-                      ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed grayscale opacity-60"
-                      : isViceCaptain
-                      ? "bg-gray-400 text-white border-gray-500 shadow-md ring-2 ring-gray-200 dark:ring-gray-700"
-                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  <Crown
-                    size={16}
-                    fill={isViceCaptain && !isBench ? "currentColor" : "none"}
-                  />
-                  {isViceCaptain ? "Vice-Captain" : "Make VC"}
-                </button>
-              </div>
+                  <button
+                    onClick={() => onSetViceCaptain(player.id)}
+                    className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all border ${
+                      isBench
+                        ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed grayscale opacity-60"
+                        : isViceCaptain
+                        ? "bg-gray-400 text-white border-gray-500 shadow-md ring-2 ring-gray-200 dark:ring-gray-700"
+                        : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <Crown
+                      size={16}
+                      fill={isViceCaptain && !isBench ? "currentColor" : "none"}
+                    />
+                    {isViceCaptain ? "Vice-Captain" : "Make VC"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
