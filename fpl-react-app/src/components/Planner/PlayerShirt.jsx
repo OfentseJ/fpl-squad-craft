@@ -1,4 +1,5 @@
 import { useFPLApi } from "../../hooks/useFplApi";
+import { AlertTriangle } from "lucide-react";
 
 export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
   const teams = player.teams || [];
@@ -11,6 +12,33 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
   // Captaincy Flags
   const isCaptain = player.is_captain;
   const isViceCaptain = player.is_vice_captain;
+
+  // --- Injury Logic ---
+  const chance = player.chance_of_playing_next_round;
+  const isInjured = chance !== null && chance < 100;
+
+  // Determine styling based on injury status
+  // 1. Badge Color (The Icon)
+  const badgeBg = chance === 0 ? "bg-red-600" : "bg-yellow-400";
+  const badgeText = chance === 0 ? "text-white" : "text-black";
+
+  // 2. Name Box Color (The Text Box)
+  let statusBg =
+    "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700";
+  let statusText = "text-gray-900 dark:text-white";
+  let subText = "text-gray-600 dark:text-gray-400";
+
+  if (isInjured) {
+    if (chance === 0) {
+      statusBg = "bg-red-500 border-red-600";
+      statusText = "text-white";
+      subText = "text-red-100";
+    } else {
+      statusBg = "bg-yellow-400 border-yellow-500";
+      statusText = "text-black";
+      subText = "text-yellow-900/70";
+    }
+  }
 
   // Get next opponent from fixtures
   const getNextOpponent = () => {
@@ -40,12 +68,23 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
       className="relative flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95 z-10 w-16 sm:w-20 md:w-24"
     >
       <div className="relative bg-slate-500/50 backdrop-filter backdrop-blur border-slate-500 border rounded-md pt-1.5 w-full flex flex-col items-center">
+        {/* --- Captaincy Badge (Top Right) --- */}
         {(isCaptain || isViceCaptain) && (
           <div className="absolute -top-2 -right-2 bg-black text-white text-[9px] sm:text-[10px] font-black w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full border border-white z-30 shadow-sm">
             {isCaptain ? "C" : "V"}
           </div>
         )}
 
+        {/* --- Injury Warning Badge (Top Left) --- */}
+        {isInjured && (
+          <div
+            className={`absolute -top-2 -left-2 ${badgeBg} ${badgeText} w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full border border-white z-30 shadow-sm`}
+          >
+            <AlertTriangle size={12} />
+          </div>
+        )}
+
+        {/* Shirt Image */}
         <div className="-mb-4 sm:-mb-5 z-10">
           <img
             src={shirtUrl}
@@ -56,16 +95,20 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
 
         {/* Player Info Box */}
         <div
-          className={`relative text-center bg-white dark:bg-gray-800 rounded-sm px-1 py-0.5 shadow-md z-20 border border-gray-100 dark:border-gray-700 w-[95%] sm:w-full ${
+          className={`relative text-center rounded-sm px-1 py-0.5 shadow-md z-20 border w-[95%] sm:w-full transition-colors duration-300 ${statusBg} ${
             inPitch
               ? "min-w-[60px] sm:min-w-[70px] md:min-w-20"
               : "min-w-[60px] sm:min-w-[70px]"
           }`}
         >
-          <div className="text-[10px] sm:text-xs font-bold text-gray-900 dark:text-white leading-tight truncate px-0.5">
+          <div
+            className={`text-[10px] sm:text-xs font-bold leading-tight truncate px-0.5 ${statusText}`}
+          >
             {player.web_name}
           </div>
-          <div className="text-[9px] sm:text-[10px] text-gray-600 dark:text-gray-400 leading-none mt-0.5">
+          <div
+            className={`text-[9px] sm:text-[10px] leading-none mt-0.5 ${subText}`}
+          >
             {getNextOpponent()}
           </div>
         </div>

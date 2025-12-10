@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { Users, Save, RotateCcw, Download, XCircle, Info } from "lucide-react";
+import {
+  Users,
+  Save,
+  RotateCcw,
+  Download,
+  XCircle,
+  Info,
+  AlertTriangle,
+} from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
 import PlayerDetailModal from "../components/Planner/PlayerDetailModal";
@@ -338,7 +346,7 @@ export default function Planner({ data }) {
                       : "bg-gray-600 text-gray-400 cursor-not-allowed opacity-60"
                   }`}
                 >
-                  <Save size={18} /> Save & Set XI
+                  <Save size={18} /> Save
                 </button>
               )}
               {squad.length > 0 && (
@@ -428,14 +436,14 @@ export default function Planner({ data }) {
                           : "FWD"}
                       </span>
                     </div>
-                    {!isSaved && (
+                    {
                       <button
                         onClick={() => removePlayer(p.id)}
                         className="text-red-500 text-sm underline hover:text-red-400"
                       >
                         Remove
                       </button>
-                    )}
+                    }
                   </div>
                 ))}
               </div>
@@ -485,6 +493,16 @@ export default function Planner({ data }) {
                   const teamFull = isTeamFull(p.team);
                   const isDisabled = posFull || teamFull || isSaved;
 
+                  const chance = p.chance_of_playing_next_round;
+                  const isInjured = chance !== null && chance < 100;
+
+                  // Determine color based on severity
+                  const injuryColorClass =
+                    chance === 0
+                      ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800"
+                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800";
+                  // -------------------------
+
                   return (
                     <button
                       key={p.id}
@@ -508,9 +526,24 @@ export default function Planner({ data }) {
                           />
                         </div>
                         <div>
-                          <div className="font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-100">
-                            {p.web_name}
+                          {/* Modified Name Container for Injury Status */}
+                          <div className="flex items-center gap-2">
+                            <div className="font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-100">
+                              {p.web_name}
+                            </div>
+
+                            {/* Injury Badge */}
+                            {isInjured && (
+                              <div
+                                title={p.news} // Native tooltip shows the injury details on hover
+                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${injuryColorClass}`}
+                              >
+                                <AlertTriangle size={10} />
+                                <span>{chance}%</span>
+                              </div>
+                            )}
                           </div>
+
                           <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex gap-1">
                             <span>
                               {
@@ -564,7 +597,7 @@ export default function Planner({ data }) {
 
         {/* Global Cancel Substitution Button */}
         {substitutionSource && (
-          <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center animate-bounce">
+          <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center">
             <button
               onClick={handleCancelSubstitution}
               className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-red-700 border-2 border-white"
@@ -589,6 +622,7 @@ export default function Planner({ data }) {
             isViceCaptain={selectedPlayer.is_vice_captain}
             onSetCaptain={handleSetCaptain}
             onSetViceCaptain={handleSetViceCaptain}
+            isBench={squad.findIndex((p) => p.id === selectedPlayer.id) >= 11}
           />
         )}
 
