@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Crown,
   AlertTriangle,
+  RefreshCw, // Imported the icon for transfers
 } from "lucide-react";
 import { useFPLApi } from "../../hooks/useFplApi";
 
@@ -19,6 +20,7 @@ export default function PlayerDetailModal({
   isViceCaptain,
   onSetCaptain,
   onSetViceCaptain,
+  onTransfer, // New prop to handle the transfer logic
   isBench = false,
 }) {
   const { getPlayerImageUrl, getTeamBadgeUrl } = useFPLApi();
@@ -35,6 +37,7 @@ export default function PlayerDetailModal({
   const isInjured = chance !== null && chance < 100;
 
   // High contrast colors for the dark modal header
+  // eslint-disable-next-line no-unused-vars
   const injuryColorClass =
     chance === 0
       ? "bg-red-600 text-white border-red-400"
@@ -274,23 +277,37 @@ export default function PlayerDetailModal({
           {/* Actions Section */}
           {inSquad && (
             <div className="grid grid-cols-2 gap-3 pb-6">
-              {isSavedState && (
+              {isSavedState ? (
+                // View Mode: Substitute AND Transfer
+                <>
+                  <button
+                    onClick={() => onSubstituteStart(player.id)}
+                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 dark:shadow-none transition-all"
+                  >
+                    <ArrowLeftRight size={18} /> Substitute
+                  </button>
+                  <button
+                    onClick={() => {
+                      onTransfer(player.id);
+                      onClose(); // Optional: close modal to show search
+                    }}
+                    className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-amber-200 dark:shadow-none transition-all"
+                  >
+                    <RefreshCw size={18} /> Transfer
+                  </button>
+                </>
+              ) : (
+                // Build Mode: Remove only (spans full width logic or stays in grid)
                 <button
-                  onClick={() => onSubstituteStart(player.id)}
-                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 dark:shadow-none transition-all"
+                  onClick={() => {
+                    onRemove(player.id);
+                    onClose();
+                  }}
+                  className="col-span-2 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 py-3 rounded-xl font-bold transition-all border border-red-100 dark:border-red-900/50"
                 >
-                  <ArrowLeftRight size={18} /> Substitute
+                  Remove
                 </button>
               )}
-              <button
-                onClick={() => {
-                  onRemove(player.id);
-                  onClose();
-                }}
-                className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 py-3 rounded-xl font-bold transition-all border border-red-100 dark:border-red-900/50"
-              >
-                Remove
-              </button>
             </div>
           )}
           {/* Optional: Message if looking at a player from the list who isn't owned */}

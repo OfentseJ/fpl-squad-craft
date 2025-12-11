@@ -82,7 +82,6 @@ function Placeholder({ position, onClick, disabled }) {
 export default function Pitch({
   squad,
   saved,
-  onRemovePlayer,
   onPlaceholderClick,
   // Substitution props
   substitutionSource,

@@ -68,21 +68,23 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
       className="relative flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95 z-10 w-16 sm:w-20 md:w-24"
     >
       <div className="relative bg-slate-500/50 backdrop-filter backdrop-blur border-slate-500 border rounded-md pt-1.5 w-full flex flex-col items-center">
-        {/* --- Captaincy Badge (Top Right) --- */}
-        {(isCaptain || isViceCaptain) && (
-          <div className="absolute -top-2 -right-2 bg-black text-white text-[9px] sm:text-[10px] font-black w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full border border-white z-30 shadow-sm">
-            {isCaptain ? "C" : "V"}
-          </div>
-        )}
+        <div className="absolute top-1 right-1 flex flex-col gap-0.5">
+          {/* --- Captaincy Badge (Top Right) --- */}
+          {(isCaptain || isViceCaptain) && (
+            <div className="bg-black text-white text-[9px] sm:text-[10px] font-black w-4 h-4 sm:w-4 sm:h-4 flex items-center justify-center rounded-full border border-white z-30 shadow-sm">
+              {isCaptain ? "C" : "V"}
+            </div>
+          )}
 
-        {/* --- Injury Warning Badge (Top Left) --- */}
-        {isInjured && (
-          <div
-            className={`absolute -top-2 -left-2 ${badgeBg} ${badgeText} w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full border border-white z-30 shadow-sm`}
-          >
-            <AlertTriangle size={12} />
-          </div>
-        )}
+          {/* --- Injury Warning Badge (Top Left) --- */}
+          {isInjured && (
+            <div
+              className={`${badgeBg} ${badgeText} w-4 h-4 sm:w-4 sm:h-4 flex items-center justify-center rounded-full border border-white z-30 shadow-sm`}
+            >
+              <AlertTriangle size={12} />
+            </div>
+          )}
+        </div>
 
         {/* Shirt Image */}
         <div className="-mb-4 sm:-mb-5 z-10">

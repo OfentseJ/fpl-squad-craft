@@ -7,6 +7,7 @@ import {
   XCircle,
   Info,
   AlertTriangle,
+  RefreshCw, // Added icon for transfer mode
 } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
@@ -24,8 +25,11 @@ export default function Planner({ data }) {
   const [isSaved, setIsSaved] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  // --- NEW: Substitution State ---
+  // --- Substitution State ---
   const [substitutionSource, setSubstitutionSource] = useState(null);
+
+  // --- NEW: Transfer State ---
+  const [transferSource, setTransferSource] = useState(null);
 
   const [view, setView] = useState("pitch");
   const [positionFilter, setPositionFilter] = useState("all");
@@ -48,8 +52,13 @@ export default function Planner({ data }) {
     return false;
   };
 
-  const isTeamFull = (teamId) => {
-    return squad.filter((p) => p.team === teamId).length >= 3;
+  // --- NEW: Modified isTeamFull to account for transfers ---
+  // If we are transferring, we ignore the player currently leaving the squad
+  const isTeamFull = (teamId, ignorePlayerId = null) => {
+    const relevantSquad = ignorePlayerId
+      ? squad.filter((p) => p.id !== ignorePlayerId)
+      : squad;
+    return relevantSquad.filter((p) => p.team === teamId).length >= 3;
   };
 
   const addPlayer = (player) => {
@@ -78,7 +87,7 @@ export default function Planner({ data }) {
 
   const totalCost = squad.reduce((sum, p) => sum + p.now_cost, 0) / 10;
 
-  // --- NEW: Validation Logic for Substitutions ---
+  // --- Validation Logic for Substitutions ---
   const isSubstitutionValid = (sourceId, targetId) => {
     const sourceIndex = squad.findIndex((p) => p.id === sourceId);
     const targetIndex = squad.findIndex((p) => p.id === targetId);
@@ -94,31 +103,25 @@ export default function Planner({ data }) {
     if (targetPlayer.element_type === 1 && sourcePlayer.element_type !== 1)
       return false;
 
-    // If both are Starting XI (indices 0-10) or both are Bench (indices 11-14),
-    // swap is always valid because formation doesn't change
+    // If both are Starting XI (indices 0-10) or both are Bench (indices 11-14), swap is always valid
     const isSourceStarter = sourceIndex < 11;
     const isTargetStarter = targetIndex < 11;
 
     if (isSourceStarter === isTargetStarter) return true;
 
     // RULE 2: Formation Validation
-    // Create a temporary squad to simulate the swap
     const tempSquad = [...squad];
-    // Perform swap in temp array
     [tempSquad[sourceIndex], tempSquad[targetIndex]] = [
       tempSquad[targetIndex],
       tempSquad[sourceIndex],
     ];
 
-    // Get the NEW starting XI (first 11 players)
     const newStarters = tempSquad.slice(0, 11);
 
-    // Count positions
     const defCount = newStarters.filter((p) => p.element_type === 2).length;
     const midCount = newStarters.filter((p) => p.element_type === 3).length;
     const fwdCount = newStarters.filter((p) => p.element_type === 4).length;
 
-    // FPL Minimum Requirements: 3 DEF, 2 MID, 1 FWD
     if (defCount < 3) return false;
     if (midCount < 2) return false;
     if (fwdCount < 1) return false;
@@ -130,7 +133,6 @@ export default function Planner({ data }) {
     ? squad.some((p) => p.id === selectedPlayer.id)
     : false;
 
-  // --- NEW: Handlers ---
   const handleSubstitutionStart = (playerId) => {
     setSubstitutionSource(playerId);
     setSelectedPlayer(null);
@@ -139,7 +141,6 @@ export default function Planner({ data }) {
   const handleSubstitutionComplete = (targetId) => {
     if (!substitutionSource) return;
 
-    // If clicking self, cancel
     if (substitutionSource === targetId) {
       setSubstitutionSource(null);
       return;
@@ -169,6 +170,66 @@ export default function Planner({ data }) {
     setSubstitutionSource(null);
   };
 
+  // --- NEW: Transfer Handlers ---
+
+  const handleTransferStart = (playerId) => {
+    const playerToTransfer = squad.find((p) => p.id === playerId);
+    if (!playerToTransfer) return;
+
+    setTransferSource(playerId);
+
+    // 1. Auto-filter the market to the same position
+    setPositionFilter(playerToTransfer.element_type);
+
+    // 2. Scroll to the player list to encourage selection
+    const listElement = document.getElementById("player-list-section");
+    if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleTransferComplete = (newPlayer) => {
+    if (!transferSource) return;
+
+    const oldPlayerIndex = squad.findIndex((p) => p.id === transferSource);
+    if (oldPlayerIndex === -1) return;
+
+    const oldPlayer = squad[oldPlayerIndex];
+
+    // Validation 1: Position Check
+    // (To keep the pitch logic simple, strictly enforce position matching for now)
+    if (oldPlayer.element_type !== newPlayer.element_type) {
+      alert(
+        `You must replace a ${
+          oldPlayer.element_type === 1 ? "Goalkeeper" : "Player"
+        } with the same position.`
+      );
+      return;
+    }
+
+    // Validation 2: Team Limit Check (Ignoring the player leaving)
+    if (isTeamFull(newPlayer.team, transferSource)) {
+      alert("You already have 3 players from this team.");
+      return;
+    }
+
+    // Perform the Swap
+    const newSquad = [...squad];
+
+    newSquad[oldPlayerIndex] = {
+      ...newPlayer,
+      starting: oldPlayer.starting,
+      teams: data.teams,
+      is_captain: false,
+      is_vice_captain: false,
+    };
+
+    setSquad(newSquad);
+    setTransferSource(null);
+  };
+
+  const handleCancelTransfer = () => {
+    setTransferSource(null);
+  };
+
   const handleSaveTeam = () => {
     if (squad.length === 15) {
       const gks = squad.filter((p) => p.element_type === 1);
@@ -196,6 +257,7 @@ export default function Planner({ data }) {
       setSquad([]);
       setIsSaved(false);
       setSubstitutionSource(null);
+      setTransferSource(null);
     }
   };
 
@@ -237,29 +299,21 @@ export default function Planner({ data }) {
   };
 
   const handleSetCaptain = (playerId) => {
-    // 1. Check if the player we are promoting is currently the Vice Captain
     const targetIsCurrentVC = squad.find(
       (p) => p.id === playerId
     )?.is_vice_captain;
 
     const newSquad = squad.map((p) => {
-      // Logic for the Player getting the Armband
       if (p.id === playerId) {
         return { ...p, is_captain: true, is_vice_captain: false };
       }
-
-      // Logic for the OLD Captain
       if (p.is_captain) {
         return {
           ...p,
           is_captain: false,
-          // If the new Captain was the VC, the old Captain swaps to become VC.
-          // Otherwise, they just lose the armband.
           is_vice_captain: targetIsCurrentVC,
         };
       }
-
-      // Logic for everyone else (maintain their status)
       return p;
     });
 
@@ -268,27 +322,21 @@ export default function Planner({ data }) {
   };
 
   const handleSetViceCaptain = (playerId) => {
-    // Check if the player we are making VC is currently the Captain
     const targetIsCurrentCaptain = squad.find(
       (p) => p.id === playerId
     )?.is_captain;
 
     const newSquad = squad.map((p) => {
-      // Logic for the Player becoming VC
       if (p.id === playerId) {
         return { ...p, is_vice_captain: true, is_captain: false };
       }
-
-      // Logic for the OLD Vice Captain
       if (p.is_vice_captain) {
         return {
           ...p,
           is_vice_captain: false,
-          // If the new VC was the Captain, the old VC swaps to become Captain.
           is_captain: targetIsCurrentCaptain,
         };
       }
-
       return p;
     });
 
@@ -319,10 +367,6 @@ export default function Planner({ data }) {
   return (
     <>
       <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans dark:text-white">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center flex items-center justify-center gap-2">
-          <Users className="w-6 h-6 sm:w-8 sm:h-8" /> Squad Builder
-        </h2>
-
         {/* Summary Banner */}
         <div className="bg-linear-to-r from-slate-800 to-slate-900 text-white p-4 rounded-xl mb-6 shadow-lg border-t-4 border-green-500">
           <div className="flex justify-around items-center text-center">
@@ -397,7 +441,14 @@ export default function Planner({ data }) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* LEFT COL: PITCH or LIST VIEW */}
-          <div className="lg:col-span-2 order-1 lg:order-1 relative">
+          {/* NEW: Dim the pitch if we are in Transfer Mode */}
+          <div
+            className={`lg:col-span-2 order-1 lg:order-1 relative transition-opacity duration-300 ${
+              transferSource
+                ? "opacity-50 pointer-events-none grayscale"
+                : "opacity-100"
+            }`}
+          >
             {view === "pitch" ? (
               <Pitch
                 squad={squad}
@@ -469,14 +520,29 @@ export default function Planner({ data }) {
           {/* RIGHT COL: PLAYER SELECTOR */}
           <div
             id="player-list-section"
-            // Apply blur and disable pointer events when subbing
+            // Apply blur and disable pointer events when subbing (BUT NOT when Transferring)
             className={`lg:col-span-1 order-2 lg:order-2 transition-all duration-300 ${
               substitutionSource
                 ? "opacity-40 grayscale pointer-events-none"
                 : "opacity-100"
             }`}
           >
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden sticky top-4 border border-gray-100 dark:border-gray-700">
+            {/* NEW: Visual cue when in transfer mode */}
+            <div
+              className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden sticky top-4 border transition-colors duration-300 ${
+                transferSource
+                  ? "border-amber-500 ring-2 ring-amber-500/30"
+                  : "border-gray-100 dark:border-gray-700"
+              }`}
+            >
+              {/* NEW: Transfer Mode Header */}
+              {transferSource && (
+                <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2">
+                  <RefreshCw size={14} className="animate-spin-slow" /> Select a
+                  replacement
+                </div>
+              )}
+
               <PlayerFilters
                 allPlayers={data?.elements}
                 squad={squad}
@@ -490,27 +556,41 @@ export default function Planner({ data }) {
               <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 bg-white dark:bg-gray-800">
                 {filteredPlayers.map((p) => {
                   const posFull = isPositionFull(p.element_type);
-                  const teamFull = isTeamFull(p.team);
-                  const isDisabled = posFull || teamFull || isSaved;
+                  // NEW: Check team full using the transfer exception logic
+                  const teamFull = isTeamFull(p.team, transferSource);
+
+                  // NEW: Logic for button state
+                  // If Transfer Mode: Disable only if position mismatch or Team limit reached
+                  // If Normal Mode: Disable if Position full, Team full, or View is Saved
+                  const isDisabled = transferSource
+                    ? p.element_type !== positionFilter || teamFull
+                    : posFull || teamFull || isSaved;
 
                   const chance = p.chance_of_playing_next_round;
                   const isInjured = chance !== null && chance < 100;
 
-                  // Determine color based on severity
                   const injuryColorClass =
                     chance === 0
                       ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800"
                       : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800";
-                  // -------------------------
 
                   return (
                     <button
                       key={p.id}
-                      onClick={() => !isDisabled && addPlayer(p)}
+                      onClick={() => {
+                        // NEW: Dual functionality based on mode
+                        if (transferSource) {
+                          handleTransferComplete(p);
+                        } else if (!isDisabled) {
+                          addPlayer(p);
+                        }
+                      }}
                       disabled={isDisabled}
                       className={`w-full text-left p-2 sm:p-3 rounded-lg flex justify-between items-center transition-all border ${
                         isDisabled
                           ? "bg-gray-50 dark:bg-gray-800/50 opacity-50 cursor-not-allowed border-transparent grayscale"
+                          : transferSource
+                          ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/20 cursor-pointer"
                           : "bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-900/20 border-gray-100 dark:border-gray-700 cursor-pointer hover:border-green-200 dark:hover:border-green-800 hover:shadow-sm"
                       }`}
                     >
@@ -526,16 +606,13 @@ export default function Planner({ data }) {
                           />
                         </div>
                         <div>
-                          {/* Modified Name Container for Injury Status */}
                           <div className="flex items-center gap-2">
                             <div className="font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-100">
                               {p.web_name}
                             </div>
-
-                            {/* Injury Badge */}
                             {isInjured && (
                               <div
-                                title={p.news} // Native tooltip shows the injury details on hover
+                                title={p.news}
                                 className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${injuryColorClass}`}
                               >
                                 <AlertTriangle size={10} />
@@ -607,6 +684,18 @@ export default function Planner({ data }) {
           </div>
         )}
 
+        {/* NEW: Global Cancel Transfer Button */}
+        {transferSource && (
+          <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center animate-bounce-subtle">
+            <button
+              onClick={handleCancelTransfer}
+              className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-amber-700 border-2 border-white"
+            >
+              <XCircle size={20} /> Cancel Transfer
+            </button>
+          </div>
+        )}
+
         {/* Modals */}
         {selectedPlayer && (
           <PlayerDetailModal
@@ -622,6 +711,8 @@ export default function Planner({ data }) {
             isViceCaptain={selectedPlayer.is_vice_captain}
             onSetCaptain={handleSetCaptain}
             onSetViceCaptain={handleSetViceCaptain}
+            // Transfer Prop
+            onTransfer={handleTransferStart}
             isBench={squad.findIndex((p) => p.id === selectedPlayer.id) >= 11}
           />
         )}
