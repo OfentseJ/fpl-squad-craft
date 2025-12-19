@@ -7,7 +7,7 @@ import {
   XCircle,
   Info,
   AlertTriangle,
-  RefreshCw, // Added icon for transfer mode
+  RefreshCw,
 } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
@@ -15,6 +15,7 @@ import PlayerDetailModal from "../components/Planner/PlayerDetailModal";
 import ImportTeamModal from "../components/Planner/ImportTeamModal";
 import Footer from "../components/Footer";
 import { useFPLApi } from "../hooks/useFplApi";
+import { SquadListView } from "../components/Planner/SquadListView";
 
 export default function Planner({ data }) {
   const [squad, setSquad] = useState([]);
@@ -462,42 +463,14 @@ export default function Planner({ data }) {
                 onPlayerSelect={handleSelectedPlayer}
               />
             ) : (
-              <div className="space-y-2">
-                {squad.length === 0 && (
-                  <div className="text-center text-gray-400 py-10">
-                    No players selected. Go to the Pitch view to add players.
-                  </div>
-                )}
-                {squad.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded shadow border-l-4 border-green-500"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="font-bold text-gray-800 dark:text-white">
-                        {p.web_name}
-                      </div>
-                      <span className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
-                        {p.element_type === 1
-                          ? "GKP"
-                          : p.element_type === 2
-                          ? "DEF"
-                          : p.element_type === 3
-                          ? "MID"
-                          : "FWD"}
-                      </span>
-                    </div>
-                    {
-                      <button
-                        onClick={() => removePlayer(p.id)}
-                        className="text-red-500 text-sm underline hover:text-red-400"
-                      >
-                        Remove
-                      </button>
-                    }
-                  </div>
-                ))}
-              </div>
+              <SquadListView
+                squad={squad}
+                saved={isSaved}
+                data={data}
+                removePlayer={removePlayer}
+                getShirtUrl={getShirtUrl}
+                onPlayerSelect={handleSelectedPlayer}
+              />
             )}
 
             {/* --- IMPORT BUTTON SECTION (Below Pitch) --- */}

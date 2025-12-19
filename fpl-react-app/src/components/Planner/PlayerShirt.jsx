@@ -17,12 +17,11 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
   const chance = player.chance_of_playing_next_round;
   const isInjured = chance !== null && chance < 100;
 
-  // Determine styling based on injury status
-  // 1. Badge Color (The Icon)
+  // Badge Logic
   const badgeBg = chance === 0 ? "bg-red-600" : "bg-yellow-400";
   const badgeText = chance === 0 ? "text-white" : "text-black";
 
-  // 2. Name Box Color (The Text Box)
+  // Name Box Logic
   let statusBg =
     "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700";
   let statusText = "text-gray-900 dark:text-white";
@@ -40,26 +39,45 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
     }
   }
 
-  // Get next opponent from fixtures
-  const getNextOpponent = () => {
-    if (!fixtures || fixtures.length === 0) return "—";
+  // --- FIXED FIXTURE LOGIC ---
+  // We calculate this BEFORE the return statement so variables are available for styling
+  let difficulty = 0;
+  let opponentDisplay = "—";
 
+  if (fixtures && fixtures.length > 0) {
     const nextFixture = fixtures.find(
       (f) =>
         !f.finished && (f.team_h === player.team || f.team_a === player.team)
     );
 
-    if (!nextFixture) return "—";
+    if (nextFixture) {
+      const isHome = nextFixture.team_h === player.team;
+      const opponentId = isHome ? nextFixture.team_a : nextFixture.team_h;
+      const opponentTeam = teams.find((t) => t.id === opponentId);
 
-    const isHome = nextFixture.team_h === player.team;
-    const opponentId = isHome ? nextFixture.team_a : nextFixture.team_h;
-    const opponentTeam = teams.find((t) => t.id === opponentId);
+      // Set Difficulty
+      difficulty = isHome
+        ? nextFixture.team_h_difficulty
+        : nextFixture.team_a_difficulty;
 
-    if (!opponentTeam) return "—";
+      // Set Name (UPPERCASE for Home, lowercase for Away)
+      if (opponentTeam) {
+        opponentDisplay = isHome
+          ? opponentTeam.short_name.toUpperCase()
+          : opponentTeam.short_name.toLowerCase();
+      }
+    }
+  }
 
-    return isHome
-      ? opponentTeam.short_name.toUpperCase()
-      : opponentTeam.short_name.toLowerCase();
+  // --- FDR COLOR HELPER ---
+  // Added text colors to ensure readability against the colored backgrounds
+  const getFDRClass = (diff) => {
+    if (!diff || diff === 0)
+      return "bg-gray-100 dark:bg-gray-700 text-gray-400"; // Default/Blank
+    if (diff <= 2) return "bg-[#01fc7a] text-black border-green-600"; // Green (Easy)
+    if (diff === 3) return "bg-gray-200 text-black border-gray-300"; // Grey (Medium)
+    if (diff === 4) return "bg-[#ff1751] text-white border-red-600"; // Red (Hard)
+    return "bg-[#80072d] text-white border-red-900"; // Dark Red (Very Hard)
   };
 
   return (
@@ -69,14 +87,14 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
     >
       <div className="relative bg-slate-500/50 backdrop-filter backdrop-blur border-slate-500 border rounded-md pt-1.5 w-full flex flex-col items-center">
         <div className="absolute top-1 right-1 flex flex-col gap-0.5">
-          {/* --- Captaincy Badge (Top Right) --- */}
+          {/* Captaincy Badge */}
           {(isCaptain || isViceCaptain) && (
             <div className="bg-black text-white text-[9px] sm:text-[10px] font-black w-4 h-4 sm:w-4 sm:h-4 flex items-center justify-center rounded-full border border-white z-30 shadow-sm">
               {isCaptain ? "C" : "V"}
             </div>
           )}
 
-          {/* --- Injury Warning Badge (Top Left) --- */}
+          {/* Injury Warning Badge */}
           {isInjured && (
             <div
               className={`${badgeBg} ${badgeText} w-4 h-4 sm:w-4 sm:h-4 flex items-center justify-center rounded-full border border-white z-30 shadow-sm`}
@@ -97,7 +115,7 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
 
         {/* Player Info Box */}
         <div
-          className={`relative text-center rounded-sm px-1 py-0.5 shadow-md z-20 border w-[95%] sm:w-full transition-colors duration-300 ${statusBg} ${
+          className={`relative text-center rounded-t-sm px-1 py-0.5 shadow-md z-20 border w-[95%] sm:w-full transition-colors duration-300 ${statusBg} ${
             inPitch
               ? "min-w-[60px] sm:min-w-[70px] md:min-w-20"
               : "min-w-[60px] sm:min-w-[70px]"
@@ -108,10 +126,20 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
           >
             {player.web_name}
           </div>
-          <div
-            className={`text-[9px] sm:text-[10px] leading-none mt-0.5 ${subText}`}
-          >
-            {getNextOpponent()}
+        </div>
+
+        {/* --- Fixture / Difficulty Box --- */}
+        <div
+          className={`relative text-center rounded-b-sm px-1 py-0.5 shadow-md z-20 w-[95%] sm:w-full transition-colors duration-300 ${getFDRClass(
+            difficulty
+          )} ${
+            inPitch
+              ? "min-w-[60px] sm:min-w-[70px] md:min-w-20"
+              : "min-w-[60px] sm:min-w-[70px]"
+          }`}
+        >
+          <div className="text-[9px] sm:text-[10px] leading-none mt-0.5 font-bold">
+            {opponentDisplay}
           </div>
         </div>
       </div>
