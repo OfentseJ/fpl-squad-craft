@@ -16,6 +16,8 @@ import ImportTeamModal from "../components/Planner/ImportTeamModal";
 import Footer from "../components/Footer";
 import { useFPLApi } from "../hooks/useFplApi";
 import { SquadListView } from "../components/Planner/SquadListView";
+import { getCurrentGameweek } from "../utils/FplUtils";
+import GameweekNavigator from "../components/Planner/GameweekNavigator";
 
 export default function Planner({ data }) {
   const [squad, setSquad] = useState([]);
@@ -37,11 +39,30 @@ export default function Planner({ data }) {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [fixtures, setFixtures] = useState([]);
 
+  const [currentActualGw, setCurrentActualGw] = useState(() => {
+    const gwEvent = getCurrentGameweek(data?.events);
+    return gwEvent ? gwEvent.id : 1;
+  });
+
+  // This state controls what the Planner is currently "looking at"
+  const [viewingGw, setViewingGw] = useState(currentActualGw);
+
   const { getShirtUrl, getFixtures, importUserTeam } = useFPLApi();
 
   useEffect(() => {
     getFixtures().then((data) => setFixtures(data));
   }, [getFixtures]);
+
+  useEffect(() => {
+    if (data?.events) {
+      const gwEvent = getCurrentGameweek(data.events);
+      if (gwEvent) {
+        setCurrentActualGw(gwEvent.id);
+        // Initialize viewing GW to the actual current GW
+        setViewingGw((prev) => (prev === 1 ? gwEvent.id : prev));
+      }
+    }
+  }, [data]);
 
   // Helper: Check if a specific position is full
   const isPositionFull = (elementType) => {
@@ -196,7 +217,6 @@ export default function Planner({ data }) {
     const oldPlayer = squad[oldPlayerIndex];
 
     // Validation 1: Position Check
-    // (To keep the pitch logic simple, strictly enforce position matching for now)
     if (oldPlayer.element_type !== newPlayer.element_type) {
       alert(
         `You must replace a ${
@@ -368,6 +388,17 @@ export default function Planner({ data }) {
   return (
     <>
       <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans dark:text-white">
+        {/* --- MODIFIED: NAVIGATION COMPONENT --- */}
+        {isSaved && (
+          <div className="mb-6">
+            <GameweekNavigator
+              viewingGw={viewingGw}
+              currentActualGw={currentActualGw}
+              setViewingGw={setViewingGw}
+            />
+          </div>
+        )}
+
         {/* Summary Banner */}
         <div className="bg-linear-to-r from-slate-800 to-slate-900 text-white p-4 rounded-xl mb-6 shadow-lg border-t-4 border-green-500">
           <div className="flex justify-around items-center text-center">
@@ -442,7 +473,6 @@ export default function Planner({ data }) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* LEFT COL: PITCH or LIST VIEW */}
-          {/* NEW: Dim the pitch if we are in Transfer Mode */}
           <div
             className={`lg:col-span-2 order-1 lg:order-1 relative transition-opacity duration-300 ${
               transferSource
@@ -454,6 +484,7 @@ export default function Planner({ data }) {
               <Pitch
                 squad={squad}
                 saved={isSaved}
+                gameweekId={viewingGw}
                 onRemovePlayer={removePlayer}
                 onPlaceholderClick={handlePlaceholderClick}
                 // Substitution props
@@ -493,14 +524,12 @@ export default function Planner({ data }) {
           {/* RIGHT COL: PLAYER SELECTOR */}
           <div
             id="player-list-section"
-            // Apply blur and disable pointer events when subbing (BUT NOT when Transferring)
             className={`lg:col-span-1 order-2 lg:order-2 transition-all duration-300 ${
               substitutionSource
                 ? "opacity-40 grayscale pointer-events-none"
                 : "opacity-100"
             }`}
           >
-            {/* NEW: Visual cue when in transfer mode */}
             <div
               className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden sticky top-4 border transition-colors duration-300 ${
                 transferSource
@@ -508,7 +537,6 @@ export default function Planner({ data }) {
                   : "border-gray-100 dark:border-gray-700"
               }`}
             >
-              {/* NEW: Transfer Mode Header */}
               {transferSource && (
                 <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2">
                   <RefreshCw size={14} className="animate-spin-slow" /> Select a
@@ -529,12 +557,8 @@ export default function Planner({ data }) {
               <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 bg-white dark:bg-gray-800">
                 {filteredPlayers.map((p) => {
                   const posFull = isPositionFull(p.element_type);
-                  // NEW: Check team full using the transfer exception logic
                   const teamFull = isTeamFull(p.team, transferSource);
 
-                  // NEW: Logic for button state
-                  // If Transfer Mode: Disable only if position mismatch or Team limit reached
-                  // If Normal Mode: Disable if Position full, Team full, or View is Saved
                   const isDisabled = transferSource
                     ? p.element_type !== positionFilter || teamFull
                     : posFull || teamFull || isSaved;
@@ -551,7 +575,6 @@ export default function Planner({ data }) {
                     <button
                       key={p.id}
                       onClick={() => {
-                        // NEW: Dual functionality based on mode
                         if (transferSource) {
                           handleTransferComplete(p);
                         } else if (!isDisabled) {
@@ -657,7 +680,7 @@ export default function Planner({ data }) {
           </div>
         )}
 
-        {/* NEW: Global Cancel Transfer Button */}
+        {/* Global Cancel Transfer Button */}
         {transferSource && (
           <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center animate-bounce-subtle">
             <button

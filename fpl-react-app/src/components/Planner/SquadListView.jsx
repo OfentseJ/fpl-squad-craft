@@ -64,7 +64,6 @@ export const SquadListView = ({
 
           {/* --- BODY --- */}
           {positions.map((pos) => {
-            console.log(squad);
             const playersInPos = squad.filter((p) => p.element_type === pos.id);
             if (playersInPos.length === 0) return null;
 

@@ -3,10 +3,11 @@ import PlayerShirt from "./PlayerShirt";
 import { useEffect, useState, useMemo } from "react";
 import { useFPLApi } from "../../hooks/useFplApi";
 
+// ... [HalfPitchBackground and Placeholder components remain unchanged] ...
+
 function HalfPitchBackground() {
   return (
     <div className="absolute inset-0 z-0 pointer-events-none bg-[#00b159]">
-      {/* Grass Pattern */}
       <div
         className="absolute inset-0 w-full h-full"
         style={{
@@ -14,7 +15,6 @@ function HalfPitchBackground() {
             "repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(0,0,0,0.05) 40px, rgba(0,0,0,0.05) 80px)",
         }}
       />
-      {/* Pitch Lines */}
       <svg
         width="100%"
         height="100%"
@@ -77,13 +77,11 @@ function Placeholder({ position, onClick, disabled }) {
   );
 }
 
-// --- Main Component ---
-
 export default function Pitch({
   squad,
   saved,
+  gameweekId,
   onPlaceholderClick,
-  // Substitution props
   substitutionSource,
   onSubstituteComplete,
   isSubstitutionValid,
@@ -107,7 +105,6 @@ export default function Pitch({
       onSubstituteComplete(player.id);
       return;
     }
-
     onPlayerSelect(player);
   };
 
@@ -120,7 +117,6 @@ export default function Pitch({
     const fwd = squad.filter((p) => p.element_type === 4);
 
     if (!saved) {
-      // PRE-SAVE: Show all 15 slots
       return {
         pitchRows: [
           { type: 1, players: [...gk, ...Array(2 - gk.length).fill(null)] },
@@ -131,7 +127,6 @@ export default function Pitch({
         benchPlayers: [],
       };
     } else {
-      // POST-SAVE: Formation Logic
       const starters = squad.slice(0, 11);
       const subs = squad.slice(11, 15);
 
@@ -152,23 +147,19 @@ export default function Pitch({
     }
   }, [squad, saved]);
 
-  // Helper to render a row
   const renderRow = (rowObj, rowIndex) => {
     return rowObj.players.map((p, i) => {
       const key = p
         ? `player-${p.id}`
         : `placeholder-${rowObj.type}-${rowIndex}-${i}`;
 
-      // --- LOGIC FOR VISUAL FEEDBACK ---
       const isSubSource = substitutionSource === p?.id;
-
-      // If a source is selected, is this specific player a valid target?
       let isValidTarget = true;
       if (substitutionSource) {
         if (!p) {
-          isValidTarget = false; // Cannot swap with empty slot
+          isValidTarget = false;
         } else if (p.id === substitutionSource) {
-          isValidTarget = true; // Can click self to cancel
+          isValidTarget = true;
         } else {
           isValidTarget = isSubstitutionValid(substitutionSource, p.id);
         }
@@ -178,7 +169,6 @@ export default function Pitch({
         <div
           key={key}
           className={`transition-all duration-300 ${
-            // Visual Styles based on state
             isSubSource
               ? "scale-110 ring-4 border-yellow-400 rounded-full z-20"
               : substitutionSource && !isValidTarget
@@ -188,7 +178,6 @@ export default function Pitch({
               : ""
           }`}
         >
-          {/* Show Swap Icon if valid target */}
           {substitutionSource && isValidTarget && !isSubSource && (
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-30 bg-yellow-400 text-black p-1 rounded-full shadow-md animate-bounce">
               <ArrowLeftRight size={12} />
@@ -200,6 +189,7 @@ export default function Pitch({
             onClick={() => isValidTarget && handlePlayerClick(p)}
             inPitch={true}
             fixtures={fixtures}
+            gameweekId={gameweekId} // <--- PASSING PROP HERE
           />
         </div>
       ) : (
@@ -207,7 +197,6 @@ export default function Pitch({
           key={key}
           position={labelMap[rowObj.type]}
           onClick={() => onPlaceholderClick(rowObj.type)}
-          // Disable placeholders during substitution
           disabled={!!substitutionSource}
         />
       );
@@ -217,34 +206,24 @@ export default function Pitch({
   return (
     <>
       <div className="w-full mx-auto max-w-md sm:max-w-xl md:max-w-3xl">
-        {/* PITCH AREA */}
         <div className="relative w-full aspect-3/4 sm:aspect-4/3 rounded-xl overflow-hidden shadow-2xl border-4 border-white bg-[#00b159]">
           <HalfPitchBackground />
-
           <div className="relative h-full flex flex-col justify-between py-4 sm:py-6 z-10 px-1 sm:px-4">
-            {/* GK */}
             <div className="flex justify-center pt-1 sm:pt-2 gap-8">
               {renderRow(pitchRows[0], 0)}
             </div>
-
-            {/* DEF */}
             <div className="flex justify-center items-center gap-2 sm:gap-6">
               {renderRow(pitchRows[1], 1)}
             </div>
-
-            {/* MID */}
             <div className="flex justify-center items-center gap-2 sm:gap-6">
               {renderRow(pitchRows[2], 2)}
             </div>
-
-            {/* FWD */}
             <div className="flex justify-center items-end gap-6 sm:gap-8 pb-2 sm:pb-4">
               {renderRow(pitchRows[3], 3)}
             </div>
           </div>
         </div>
 
-        {/* BENCH AREA */}
         {saved && benchPlayers.length > 0 && (
           <div
             className={`mt-4 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border border-gray-200 dark:border-gray-700 transition-colors ${
@@ -262,7 +241,6 @@ export default function Pitch({
                 if (p) label = labelMap[p.element_type];
                 else if (i === 0) label = "GKP";
 
-                // --- BENCH LOGIC VISUALS ---
                 const isSubSource = substitutionSource === p?.id;
                 let isValidTarget = true;
                 if (substitutionSource) {
@@ -295,7 +273,6 @@ export default function Pitch({
                             : ""
                         }`}
                       >
-                        {/* Swap Icon for Bench too */}
                         {substitutionSource &&
                           isValidTarget &&
                           !isSubSource && (
@@ -308,6 +285,7 @@ export default function Pitch({
                           onClick={() => isValidTarget && handlePlayerClick(p)}
                           inPitch={false}
                           fixtures={fixtures}
+                          gameweekId={gameweekId}
                         />
                       </div>
                     ) : (

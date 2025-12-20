@@ -8,8 +8,8 @@ import Home from "./pages/Home";
 import Trends from "./pages/Trends";
 import Live from "./pages/Live";
 import Planner from "./pages/Planner";
-import { useFPLApi } from "./hooks/useFPLApi";
 import { DarkModeContext } from "./context/DarkModeContext";
+import { useFPLApi } from "./hooks/useFplApi";
 
 export default function App() {
   const [dark, setDark] = useState(false);

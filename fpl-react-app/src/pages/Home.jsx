@@ -1,5 +1,5 @@
 import { TrendingUp, Activity, Star } from "lucide-react";
-import { getCurrentGameweek } from "../utils/gameweek";
+import { getCurrentGameweek } from "../utils/FplUtils";
 import Footer from "../components/Footer";
 
 export default function Home({ data }) {

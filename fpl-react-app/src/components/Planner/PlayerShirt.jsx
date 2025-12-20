@@ -1,7 +1,13 @@
 import { useFPLApi } from "../../hooks/useFplApi";
 import { AlertTriangle } from "lucide-react";
 
-export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
+export default function PlayerShirt({
+  player,
+  onClick,
+  inPitch,
+  fixtures,
+  gameweekId,
+}) {
   const teams = player.teams || [];
   const isGK = player.element_type === 1;
   const team = teams.find((t) => t.id === player.team);
@@ -39,26 +45,38 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
     }
   }
 
-  // --- FIXED FIXTURE LOGIC ---
-  // We calculate this BEFORE the return statement so variables are available for styling
+  // --- GW SPECIFIC FIXTURE LOGIC ---
   let difficulty = 0;
   let opponentDisplay = "—";
 
   if (fixtures && fixtures.length > 0) {
-    const nextFixture = fixtures.find(
-      (f) =>
-        !f.finished && (f.team_h === player.team || f.team_a === player.team)
+    // 1. Filter fixtures specifically for this player's team
+    const teamFixtures = fixtures.filter(
+      (f) => f.team_h === player.team || f.team_a === player.team
     );
 
-    if (nextFixture) {
-      const isHome = nextFixture.team_h === player.team;
-      const opponentId = isHome ? nextFixture.team_a : nextFixture.team_h;
+    let relevantFixture = null;
+
+    // 2. Logic: If gameweekId is provided, find THAT match.
+    //    Otherwise, default to next unfinished (legacy behavior).
+    if (gameweekId) {
+      relevantFixture = teamFixtures.find((f) => f.event === gameweekId);
+    } else {
+      relevantFixture = teamFixtures.find((f) => !f.finished);
+    }
+
+    // 3. Display Logic
+    if (relevantFixture) {
+      const isHome = relevantFixture.team_h === player.team;
+      const opponentId = isHome
+        ? relevantFixture.team_a
+        : relevantFixture.team_h;
       const opponentTeam = teams.find((t) => t.id === opponentId);
 
       // Set Difficulty
       difficulty = isHome
-        ? nextFixture.team_h_difficulty
-        : nextFixture.team_a_difficulty;
+        ? relevantFixture.team_h_difficulty
+        : relevantFixture.team_a_difficulty;
 
       // Set Name (UPPERCASE for Home, lowercase for Away)
       if (opponentTeam) {
@@ -66,11 +84,14 @@ export default function PlayerShirt({ player, onClick, inPitch, fixtures }) {
           ? opponentTeam.short_name.toUpperCase()
           : opponentTeam.short_name.toLowerCase();
       }
+    } else if (gameweekId) {
+      // Explicitly selected a GW, but no match found -> BLANK GW
+      opponentDisplay = "BLK";
+      difficulty = 0;
     }
   }
 
   // --- FDR COLOR HELPER ---
-  // Added text colors to ensure readability against the colored backgrounds
   const getFDRClass = (diff) => {
     if (!diff || diff === 0)
       return "bg-gray-100 dark:bg-gray-700 text-gray-400"; // Default/Blank

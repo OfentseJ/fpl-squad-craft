@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCurrentGameweek } from "../utils/gameweek";
+import { getCurrentGameweek } from "../utils/FplUtils";
 import LoadingSkeleton from "../components/LoadingSkeleton";
 import ErrorDisplay from "../components/ErrorDisplay";
 import Footer from "../components/Footer";
