@@ -7,6 +7,7 @@ export default function PlayerShirt({
   inPitch,
   fixtures,
   gameweekId,
+  highlight, // <--- NEW PROP
 }) {
   const teams = player.teams || [];
   const isGK = player.element_type === 1;
@@ -50,22 +51,18 @@ export default function PlayerShirt({
   let opponentDisplay = "—";
 
   if (fixtures && fixtures.length > 0) {
-    // 1. Filter fixtures specifically for this player's team
     const teamFixtures = fixtures.filter(
       (f) => f.team_h === player.team || f.team_a === player.team
     );
 
     let relevantFixture = null;
 
-    // 2. Logic: If gameweekId is provided, find THAT match.
-    //    Otherwise, default to next unfinished (legacy behavior).
     if (gameweekId) {
       relevantFixture = teamFixtures.find((f) => f.event === gameweekId);
     } else {
       relevantFixture = teamFixtures.find((f) => !f.finished);
     }
 
-    // 3. Display Logic
     if (relevantFixture) {
       const isHome = relevantFixture.team_h === player.team;
       const opponentId = isHome
@@ -73,40 +70,42 @@ export default function PlayerShirt({
         : relevantFixture.team_h;
       const opponentTeam = teams.find((t) => t.id === opponentId);
 
-      // Set Difficulty
       difficulty = isHome
         ? relevantFixture.team_h_difficulty
         : relevantFixture.team_a_difficulty;
 
-      // Set Name (UPPERCASE for Home, lowercase for Away)
       if (opponentTeam) {
         opponentDisplay = isHome
           ? opponentTeam.short_name.toUpperCase()
           : opponentTeam.short_name.toLowerCase();
       }
-    } else if (gameweekId) {
-      // Explicitly selected a GW, but no match found -> BLANK GW
-      opponentDisplay = "BLK";
-      difficulty = 0;
     }
   }
 
   // --- FDR COLOR HELPER ---
   const getFDRClass = (diff) => {
     if (!diff || diff === 0)
-      return "bg-gray-100 dark:bg-gray-700 text-gray-400"; // Default/Blank
-    if (diff <= 2) return "bg-[#01fc7a] text-black border-green-600"; // Green (Easy)
-    if (diff === 3) return "bg-gray-200 text-black border-gray-300"; // Grey (Medium)
-    if (diff === 4) return "bg-[#ff1751] text-white border-red-600"; // Red (Hard)
-    return "bg-[#80072d] text-white border-red-900"; // Dark Red (Very Hard)
+      return "bg-gray-100 dark:bg-gray-700 text-gray-400";
+    if (diff <= 2) return "bg-[#01fc7a] text-black border-green-600";
+    if (diff === 3) return "bg-gray-200 text-black border-gray-300";
+    if (diff === 4) return "bg-[#ff1751] text-white border-red-600";
+    return "bg-[#80072d] text-white border-red-900";
   };
+
+  // --- DYNAMIC CARD STYLE ---
+  // If highlighted, use yellow border and thicker stroke
+  const cardStyle = highlight
+    ? "bg-slate-500/60 border-yellow-400 border-2 shadow-[0_0_10px_rgba(250,204,21,0.5)] scale-105"
+    : "bg-slate-500/50 border-slate-500 border";
 
   return (
     <div
       onClick={onClick}
-      className="relative flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95 z-10 w-16 sm:w-20 md:w-24"
+      className={`relative flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95 z-10 w-16 sm:w-20 md:w-24`}
     >
-      <div className="relative bg-slate-500/50 backdrop-filter backdrop-blur border-slate-500 border rounded-md pt-1.5 w-full flex flex-col items-center">
+      <div
+        className={`relative backdrop-filter backdrop-blur rounded-md pt-1.5 w-full flex flex-col items-center transition-all duration-300 ${cardStyle}`}
+      >
         <div className="absolute top-1 right-1 flex flex-col gap-0.5">
           {/* Captaincy Badge */}
           {(isCaptain || isViceCaptain) && (

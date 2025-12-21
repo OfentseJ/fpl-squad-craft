@@ -501,6 +501,11 @@ export default function Planner({ data }) {
                 removePlayer={removePlayer}
                 getShirtUrl={getShirtUrl}
                 onPlayerSelect={handleSelectedPlayer}
+                gameweekId={viewingGw}
+                // Substitution Props
+                substitutionSource={substitutionSource}
+                onSubstituteComplete={handleSubstitutionComplete}
+                isSubstitutionValid={isSubstitutionValid}
               />
             )}
 

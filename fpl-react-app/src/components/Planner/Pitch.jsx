@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from "react";
 import { useFPLApi } from "../../hooks/useFplApi";
 
 // ... [HalfPitchBackground and Placeholder components remain unchanged] ...
-
 function HalfPitchBackground() {
   return (
     <div className="absolute inset-0 z-0 pointer-events-none bg-[#00b159]">
@@ -110,6 +109,13 @@ export default function Pitch({
 
   const labelMap = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
 
+  // Calculate if Source is a Starter
+  const sourceIsStarter = useMemo(() => {
+    if (!substitutionSource) return false;
+    const idx = squad.findIndex((p) => p.id === substitutionSource);
+    return idx >= 0 && idx < 11;
+  }, [squad, substitutionSource]);
+
   const { pitchRows, benchPlayers } = useMemo(() => {
     const gk = squad.filter((p) => p.element_type === 1);
     const def = squad.filter((p) => p.element_type === 2);
@@ -155,13 +161,16 @@ export default function Pitch({
 
       const isSubSource = substitutionSource === p?.id;
       let isValidTarget = true;
+
       if (substitutionSource) {
         if (!p) {
           isValidTarget = false;
         } else if (p.id === substitutionSource) {
           isValidTarget = true;
         } else {
-          isValidTarget = isSubstitutionValid(substitutionSource, p.id);
+          const standardValid = isSubstitutionValid(substitutionSource, p.id);
+          const isStarterSwap = sourceIsStarter; // Target here is guaranteed to be starter
+          isValidTarget = standardValid && !isStarterSwap;
         }
       }
 
@@ -170,7 +179,7 @@ export default function Pitch({
           key={key}
           className={`transition-all duration-300 ${
             isSubSource
-              ? "scale-110 ring-4 border-yellow-400 rounded-full z-20"
+              ? "z-20"
               : substitutionSource && !isValidTarget
               ? "opacity-40 grayscale blur-[1px] cursor-not-allowed scale-95"
               : substitutionSource
@@ -189,7 +198,8 @@ export default function Pitch({
             onClick={() => isValidTarget && handlePlayerClick(p)}
             inPitch={true}
             fixtures={fixtures}
-            gameweekId={gameweekId} // <--- PASSING PROP HERE
+            gameweekId={gameweekId}
+            highlight={isSubSource}
           />
         </div>
       ) : (
@@ -228,7 +238,7 @@ export default function Pitch({
           <div
             className={`mt-4 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border border-gray-200 dark:border-gray-700 transition-colors ${
               substitutionSource
-                ? "border-2 border-yellow-400 bg-yellow-50 dark:bg-gray-800"
+                ? "bg-yellow-50 dark:bg-gray-800/80 border-yellow-400 border-2"
                 : ""
             }`}
           >
@@ -265,7 +275,7 @@ export default function Pitch({
                       <div
                         className={`transition-all duration-300 ${
                           isSubSource
-                            ? "scale-110 border-4 border-yellow-400 rounded-full z-20"
+                            ? "z-20"
                             : substitutionSource && !isValidTarget
                             ? "opacity-40 grayscale blur-[1px] cursor-not-allowed scale-95"
                             : substitutionSource
@@ -286,6 +296,7 @@ export default function Pitch({
                           inPitch={false}
                           fixtures={fixtures}
                           gameweekId={gameweekId}
+                          highlight={isSubSource}
                         />
                       </div>
                     ) : (
