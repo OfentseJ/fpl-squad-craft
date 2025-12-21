@@ -87,8 +87,12 @@ export default function Pitch({
   onPlayerSelect,
 }) {
   const [fixtures, setFixtures] = useState([]);
-  const { getFixtures } = useFPLApi();
+  const [liveStats, setLiveStats] = useState({});
 
+  // Destructure the specific methods from your provided hook
+  const { getFixtures, getLive } = useFPLApi();
+
+  // 1. Fetch Fixtures
   useEffect(() => {
     let mounted = true;
     getFixtures().then((data) => {
@@ -98,6 +102,36 @@ export default function Pitch({
       mounted = false;
     };
   }, [getFixtures]);
+
+  // 2. Fetch Live Data when Gameweek ID is present
+  useEffect(() => {
+    if (!gameweekId) return;
+
+    let mounted = true;
+    const fetchLive = async () => {
+      try {
+        const data = await getLive(gameweekId);
+
+        if (mounted && data && data.elements) {
+          const statsMap = {};
+          data.elements.forEach((el) => {
+            statsMap[el.id] = el.stats;
+          });
+          setLiveStats(statsMap);
+        } else if (mounted) {
+          setLiveStats({});
+        }
+      } catch (err) {
+        console.error("Failed to fetch live stats", err);
+        if (mounted) setLiveStats({});
+      }
+    };
+
+    fetchLive();
+    return () => {
+      mounted = false;
+    };
+  }, [gameweekId, getLive]);
 
   const handlePlayerClick = (player) => {
     if (substitutionSource) {
@@ -109,7 +143,6 @@ export default function Pitch({
 
   const labelMap = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
 
-  // Calculate if Source is a Starter
   const sourceIsStarter = useMemo(() => {
     if (!substitutionSource) return false;
     const idx = squad.findIndex((p) => p.id === substitutionSource);
@@ -169,7 +202,7 @@ export default function Pitch({
           isValidTarget = true;
         } else {
           const standardValid = isSubstitutionValid(substitutionSource, p.id);
-          const isStarterSwap = sourceIsStarter; // Target here is guaranteed to be starter
+          const isStarterSwap = sourceIsStarter;
           isValidTarget = standardValid && !isStarterSwap;
         }
       }
@@ -200,6 +233,7 @@ export default function Pitch({
             fixtures={fixtures}
             gameweekId={gameweekId}
             highlight={isSubSource}
+            liveData={liveStats[p.id]}
           />
         </div>
       ) : (
@@ -297,6 +331,7 @@ export default function Pitch({
                           fixtures={fixtures}
                           gameweekId={gameweekId}
                           highlight={isSubSource}
+                          liveData={liveStats[p.id]}
                         />
                       </div>
                     ) : (

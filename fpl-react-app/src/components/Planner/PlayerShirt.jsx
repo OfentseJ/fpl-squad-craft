@@ -7,7 +7,8 @@ export default function PlayerShirt({
   inPitch,
   fixtures,
   gameweekId,
-  highlight, // <--- NEW PROP
+  highlight,
+  liveData,
 }) {
   const teams = player.teams || [];
   const isGK = player.element_type === 1;
@@ -92,8 +93,26 @@ export default function PlayerShirt({
     return "bg-[#80072d] text-white border-red-900";
   };
 
+  // --- LIVE POINTS LOGIC ---
+  let bottomBoxContent = opponentDisplay;
+  let bottomBoxClass = getFDRClass(difficulty);
+
+  // Only show live points if data exists AND the player has played (minutes > 0)
+  // OR has points on the bench (rare but possible with cards on bench)
+  // OR the match is confirmed "started" (though we don't have match status here, minutes is a safe proxy)
+  if (liveData && (liveData.minutes > 0 || liveData.total_points !== 0)) {
+    let points = liveData.total_points;
+    if (isCaptain) points = points * 2;
+    // (Add Triple Captain check here later if needed)
+
+    bottomBoxContent = `${points} Pts`;
+
+    // Use a distinct style for live points to differentiate from FDR
+    bottomBoxClass =
+      "bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 font-bold border-2";
+  }
+
   // --- DYNAMIC CARD STYLE ---
-  // If highlighted, use yellow border and thicker stroke
   const cardStyle = highlight
     ? "bg-slate-500/60 border-yellow-400 border-2 shadow-[0_0_10px_rgba(250,204,21,0.5)] scale-105"
     : "bg-slate-500/50 border-slate-500 border";
@@ -148,18 +167,16 @@ export default function PlayerShirt({
           </div>
         </div>
 
-        {/* --- Fixture / Difficulty Box --- */}
+        {/* --- Fixture / Live Points Box --- */}
         <div
-          className={`relative text-center rounded-b-sm px-1 py-0.5 shadow-md z-20 w-[95%] sm:w-full transition-colors duration-300 ${getFDRClass(
-            difficulty
-          )} ${
+          className={`relative text-center rounded-b-sm px-1 py-0.5 shadow-md z-20 w-[95%] sm:w-full transition-colors duration-300 ${bottomBoxClass} ${
             inPitch
               ? "min-w-[60px] sm:min-w-[70px] md:min-w-20"
               : "min-w-[60px] sm:min-w-[70px]"
           }`}
         >
           <div className="text-[9px] sm:text-[10px] leading-none mt-0.5 font-bold">
-            {opponentDisplay}
+            {bottomBoxContent}
           </div>
         </div>
       </div>

@@ -8,6 +8,7 @@ import {
   Info,
   AlertTriangle,
   RefreshCw,
+  Lock, // Imported Lock icon for visual feedback if needed later
 } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
@@ -18,20 +19,29 @@ import { useFPLApi } from "../hooks/useFplApi";
 import { SquadListView } from "../components/Planner/SquadListView";
 import { getCurrentGameweek } from "../utils/FplUtils";
 import GameweekNavigator from "../components/Planner/GameweekNavigator";
+import { usePlannerStorage } from "../hooks/usePlannerStorage";
 
 export default function Planner({ data }) {
-  const [squad, setSquad] = useState([]);
+  // --- STORAGE HOOK ---
+  const {
+    baseSquad,
+    setBaseSquad,
+    plannedSquads,
+    setPlannedSquads,
+    saveImportedSquad,
+    clearStorage,
+    isStorageLoaded,
+  } = usePlannerStorage();
+
+  // --- LOCAL STATE ---
+  const [squad, setSquad] = useState([]); // Visual State
   const [filteredPlayers, setFilteredPlayers] = useState([]);
   const [activeSortMetric, setActiveSortMetric] = useState("total_points");
 
-  // State to manage Pre-Save vs Post-Save (Dynamic Formation) modes
   const [isSaved, setIsSaved] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  // --- Substitution State ---
   const [substitutionSource, setSubstitutionSource] = useState(null);
-
-  // --- NEW: Transfer State ---
   const [transferSource, setTransferSource] = useState(null);
 
   const [view, setView] = useState("pitch");
@@ -39,16 +49,16 @@ export default function Planner({ data }) {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [fixtures, setFixtures] = useState([]);
 
+  const { getShirtUrl, getFixtures, importUserTeam } = useFPLApi();
+
+  // --- GAMEWEEK STATE ---
   const [currentActualGw, setCurrentActualGw] = useState(() => {
     const gwEvent = getCurrentGameweek(data?.events);
     return gwEvent ? gwEvent.id : 1;
   });
-
-  // This state controls what the Planner is currently "looking at"
   const [viewingGw, setViewingGw] = useState(currentActualGw);
 
-  const { getShirtUrl, getFixtures, importUserTeam } = useFPLApi();
-
+  // --- INITIALIZATION ---
   useEffect(() => {
     getFixtures().then((data) => setFixtures(data));
   }, [getFixtures]);
@@ -58,13 +68,81 @@ export default function Planner({ data }) {
       const gwEvent = getCurrentGameweek(data.events);
       if (gwEvent) {
         setCurrentActualGw(gwEvent.id);
-        // Initialize viewing GW to the actual current GW
         setViewingGw((prev) => (prev === 1 ? gwEvent.id : prev));
       }
     }
   }, [data]);
 
-  // Helper: Check if a specific position is full
+  // Load from Storage
+  useEffect(() => {
+    if (isStorageLoaded) {
+      if (baseSquad.length > 0 && squad.length === 0) {
+        setSquad(baseSquad);
+        setIsSaved(true);
+      }
+    }
+  }, [isStorageLoaded, baseSquad]);
+
+  // --- NAVIGATION SNAPSHOT LOGIC ---
+  useEffect(() => {
+    if (!isSaved) return;
+
+    // A. Current Week (Active Squad)
+    if (viewingGw === currentActualGw) {
+      if (baseSquad.length > 0) setSquad(baseSquad);
+      return;
+    }
+
+    // B. Future Week (Existing Plan)
+    if (plannedSquads[viewingGw]) {
+      setSquad(plannedSquads[viewingGw]);
+      return;
+    }
+
+    // C. Future Week (New Plan - Clone Previous)
+    const prevGw = viewingGw - 1;
+    const prevSquad =
+      prevGw === currentActualGw ? baseSquad : plannedSquads[prevGw];
+
+    if (prevSquad && prevSquad.length > 0) {
+      const clonedSquad = JSON.parse(JSON.stringify(prevSquad));
+      setSquad(clonedSquad);
+      setPlannedSquads((prev) => ({
+        ...prev,
+        [viewingGw]: clonedSquad,
+      }));
+    }
+  }, [viewingGw, currentActualGw, isSaved, baseSquad]);
+
+  // --- HELPER: Update State Wrapper ---
+  const updateSquadState = (newSquad) => {
+    setSquad(newSquad);
+    if (viewingGw === currentActualGw) {
+      setBaseSquad(newSquad);
+    } else {
+      setPlannedSquads((prev) => ({
+        ...prev,
+        [viewingGw]: newSquad,
+      }));
+    }
+  };
+
+  // --- NEW: RESTRICTION LOGIC ---
+  const ensurePlanningMode = () => {
+    if (viewingGw === currentActualGw && isSaved) {
+      const confirmSwitch = window.confirm(
+        "Modifications are restricted on the Active Squad.\n\nSwitch to Planning Mode (Next GW) to make changes?"
+      );
+      if (confirmSwitch) {
+        setViewingGw(currentActualGw + 1);
+        setSelectedPlayer(null);
+      }
+      return false; // Block the current action
+    }
+    return true; // Allow action
+  };
+
+  // --- EXISTING HELPERS ---
   const isPositionFull = (elementType) => {
     const count = squad.filter((p) => p.element_type === elementType).length;
     if (elementType === 1) return count >= 2;
@@ -74,8 +152,6 @@ export default function Planner({ data }) {
     return false;
   };
 
-  // --- NEW: Modified isTeamFull to account for transfers ---
-  // If we are transferring, we ignore the player currently leaving the squad
   const isTeamFull = (teamId, ignorePlayerId = null) => {
     const relevantSquad = ignorePlayerId
       ? squad.filter((p) => p.id !== ignorePlayerId)
@@ -83,21 +159,32 @@ export default function Planner({ data }) {
     return relevantSquad.filter((p) => p.team === teamId).length >= 3;
   };
 
+  // --- ACTIONS ---
+
   const addPlayer = (player) => {
+    if (!ensurePlanningMode()) return; // <--- RESTRICTION
+
     if (squad.length >= 15) return;
     if (isPositionFull(player.element_type)) return;
     if (isTeamFull(player.team)) return;
 
-    setIsSaved(false);
-    setSquad([...squad, { ...player, starting: true, teams: data.teams }]);
+    // Use updateSquadState to keep navigator visible
+    const newSquad = [
+      ...squad,
+      { ...player, starting: true, teams: data.teams },
+    ];
+    updateSquadState(newSquad);
   };
 
   const removePlayer = (playerId) => {
-    setIsSaved(false);
-    setSquad(squad.filter((p) => p.id !== playerId));
+    if (!ensurePlanningMode()) return; // <--- RESTRICTION
+
+    const newSquad = squad.filter((p) => p.id !== playerId);
+    updateSquadState(newSquad);
   };
 
   const handlePlaceholderClick = (positionId) => {
+    // We allow clicking empty slots, but adding will be blocked by addPlayer
     setPositionFilter(positionId);
     const listElement = document.getElementById("player-list-section");
     if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
@@ -109,29 +196,25 @@ export default function Planner({ data }) {
 
   const totalCost = squad.reduce((sum, p) => sum + p.now_cost, 0) / 10;
 
-  // --- Validation Logic for Substitutions ---
+  // --- SUBSTITUTION ---
   const isSubstitutionValid = (sourceId, targetId) => {
     const sourceIndex = squad.findIndex((p) => p.id === sourceId);
     const targetIndex = squad.findIndex((p) => p.id === targetId);
-
     if (sourceIndex === -1 || targetIndex === -1) return false;
 
     const sourcePlayer = squad[sourceIndex];
     const targetPlayer = squad[targetIndex];
 
-    // RULE 1: GK can only swap with GK
     if (sourcePlayer.element_type === 1 && targetPlayer.element_type !== 1)
       return false;
     if (targetPlayer.element_type === 1 && sourcePlayer.element_type !== 1)
       return false;
 
-    // If both are Starting XI (indices 0-10) or both are Bench (indices 11-14), swap is always valid
     const isSourceStarter = sourceIndex < 11;
     const isTargetStarter = targetIndex < 11;
 
     if (isSourceStarter === isTargetStarter) return true;
 
-    // RULE 2: Formation Validation
     const tempSquad = [...squad];
     [tempSquad[sourceIndex], tempSquad[targetIndex]] = [
       tempSquad[targetIndex],
@@ -139,7 +222,6 @@ export default function Planner({ data }) {
     ];
 
     const newStarters = tempSquad.slice(0, 11);
-
     const defCount = newStarters.filter((p) => p.element_type === 2).length;
     const midCount = newStarters.filter((p) => p.element_type === 3).length;
     const fwdCount = newStarters.filter((p) => p.element_type === 4).length;
@@ -151,18 +233,14 @@ export default function Planner({ data }) {
     return true;
   };
 
-  const isSelectedPlayerInSquad = selectedPlayer
-    ? squad.some((p) => p.id === selectedPlayer.id)
-    : false;
-
   const handleSubstitutionStart = (playerId) => {
+    if (!ensurePlanningMode()) return; // <--- RESTRICTION
     setSubstitutionSource(playerId);
     setSelectedPlayer(null);
   };
 
   const handleSubstitutionComplete = (targetId) => {
     if (!substitutionSource) return;
-
     if (substitutionSource === targetId) {
       setSubstitutionSource(null);
       return;
@@ -172,19 +250,16 @@ export default function Planner({ data }) {
       const newSquad = [...squad];
       const index1 = newSquad.findIndex((p) => p.id === substitutionSource);
       const index2 = newSquad.findIndex((p) => p.id === targetId);
-
       [newSquad[index1], newSquad[index2]] = [
         newSquad[index2],
         newSquad[index1],
       ];
 
-      setSquad(newSquad);
+      updateSquadState(newSquad);
       setSubstitutionSource(null);
       setIsSaved(true);
     } else {
-      alert(
-        "Invalid substitution! Check formation rules (Min 3 DEF, 2 MID, 1 FWD)."
-      );
+      alert("Invalid substitution! Check formation rules.");
     }
   };
 
@@ -192,18 +267,14 @@ export default function Planner({ data }) {
     setSubstitutionSource(null);
   };
 
-  // --- NEW: Transfer Handlers ---
-
+  // --- TRANSFERS ---
   const handleTransferStart = (playerId) => {
+    if (!ensurePlanningMode()) return; // <--- RESTRICTION
+
     const playerToTransfer = squad.find((p) => p.id === playerId);
     if (!playerToTransfer) return;
-
     setTransferSource(playerId);
-
-    // 1. Auto-filter the market to the same position
     setPositionFilter(playerToTransfer.element_type);
-
-    // 2. Scroll to the player list to encourage selection
     const listElement = document.getElementById("player-list-section");
     if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
   };
@@ -213,44 +284,57 @@ export default function Planner({ data }) {
 
     const oldPlayerIndex = squad.findIndex((p) => p.id === transferSource);
     if (oldPlayerIndex === -1) return;
-
     const oldPlayer = squad[oldPlayerIndex];
 
-    // Validation 1: Position Check
     if (oldPlayer.element_type !== newPlayer.element_type) {
-      alert(
-        `You must replace a ${
-          oldPlayer.element_type === 1 ? "Goalkeeper" : "Player"
-        } with the same position.`
-      );
+      alert("Position mismatch.");
       return;
     }
-
-    // Validation 2: Team Limit Check (Ignoring the player leaving)
     if (isTeamFull(newPlayer.team, transferSource)) {
-      alert("You already have 3 players from this team.");
+      alert("Team limit reached.");
       return;
     }
 
-    // Perform the Swap
-    const newSquad = [...squad];
-
-    newSquad[oldPlayerIndex] = {
-      ...newPlayer,
-      starting: oldPlayer.starting,
-      teams: data.teams,
-      is_captain: false,
-      is_vice_captain: false,
+    // Helper to perform swap on any list
+    const performSwap = (list) => {
+      const newList = [...list];
+      const idx = newList.findIndex((p) => p.id === oldPlayer.id);
+      if (idx !== -1) {
+        newList[idx] = {
+          ...newPlayer,
+          starting: newList[idx].starting,
+          teams: data.teams,
+          is_captain: false,
+          is_vice_captain: false,
+        };
+      }
+      return newList;
     };
 
-    setSquad(newSquad);
+    // Update Visuals
+    const updatedVisualSquad = performSwap(squad);
+    setSquad(updatedVisualSquad);
     setTransferSource(null);
+
+    // Ripple Logic (Only for future weeks since base is restricted)
+    setPlannedSquads((prev) => {
+      const nextState = { ...prev };
+      nextState[viewingGw] = updatedVisualSquad;
+
+      Object.keys(nextState).forEach((gw) => {
+        if (parseInt(gw) > viewingGw) {
+          nextState[gw] = performSwap(nextState[gw]);
+        }
+      });
+      return nextState;
+    });
   };
 
   const handleCancelTransfer = () => {
     setTransferSource(null);
   };
 
+  // --- SAVE / IMPORT ---
   const handleSaveTeam = () => {
     if (squad.length === 15) {
       const gks = squad.filter((p) => p.element_type === 1);
@@ -264,10 +348,10 @@ export default function Planner({ data }) {
         ...mids.slice(0, 4),
         ...fwds.slice(0, 2),
       ];
-
       const bench = [gks[1], defs[4], mids[4], fwds[2]];
+      const organizedSquad = [...startingXI, ...bench];
 
-      setSquad([...startingXI, ...bench]);
+      updateSquadState(organizedSquad);
       setIsSaved(true);
       setView("pitch");
     }
@@ -279,6 +363,7 @@ export default function Planner({ data }) {
       setIsSaved(false);
       setSubstitutionSource(null);
       setTransferSource(null);
+      clearStorage();
     }
   };
 
@@ -286,10 +371,7 @@ export default function Planner({ data }) {
     try {
       const currentEvent = data.events.find((e) => e.is_current)?.id || 1;
       const picks = await importUserTeam(teamId, currentEvent);
-
-      if (!picks || picks.length === 0) {
-        throw new Error("No players found for this team ID.");
-      }
+      if (!picks || picks.length === 0) throw new Error("No players found.");
 
       const importedSquad = picks
         .map((pick) => {
@@ -306,62 +388,53 @@ export default function Planner({ data }) {
         })
         .filter(Boolean);
 
-      if (importedSquad.length < 15) {
-        throw new Error("Could not find all players in database");
-      }
+      if (importedSquad.length < 15) throw new Error("Incomplete squad.");
 
       setSquad(importedSquad);
       setIsSaved(true);
       setView("pitch");
+      saveImportedSquad(importedSquad);
     } catch (err) {
-      console.error("Import failed inside Planner:", err);
-      throw err;
+      console.error(err);
     }
   };
 
+  // --- CAPTAINCY ---
   const handleSetCaptain = (playerId) => {
+    if (!ensurePlanningMode()) return; // <--- RESTRICTION
+
     const targetIsCurrentVC = squad.find(
       (p) => p.id === playerId
     )?.is_vice_captain;
-
     const newSquad = squad.map((p) => {
-      if (p.id === playerId) {
+      if (p.id === playerId)
         return { ...p, is_captain: true, is_vice_captain: false };
-      }
-      if (p.is_captain) {
-        return {
-          ...p,
-          is_captain: false,
-          is_vice_captain: targetIsCurrentVC,
-        };
-      }
+      if (p.is_captain)
+        return { ...p, is_captain: false, is_vice_captain: targetIsCurrentVC };
       return p;
     });
-
-    setSquad(newSquad);
+    updateSquadState(newSquad);
     setSelectedPlayer(null);
   };
 
   const handleSetViceCaptain = (playerId) => {
+    if (!ensurePlanningMode()) return; // <--- RESTRICTION
+
     const targetIsCurrentCaptain = squad.find(
       (p) => p.id === playerId
     )?.is_captain;
-
     const newSquad = squad.map((p) => {
-      if (p.id === playerId) {
+      if (p.id === playerId)
         return { ...p, is_vice_captain: true, is_captain: false };
-      }
-      if (p.is_vice_captain) {
+      if (p.is_vice_captain)
         return {
           ...p,
           is_vice_captain: false,
           is_captain: targetIsCurrentCaptain,
         };
-      }
       return p;
     });
-
-    setSquad(newSquad);
+    updateSquadState(newSquad);
     setSelectedPlayer(null);
   };
 
@@ -388,7 +461,6 @@ export default function Planner({ data }) {
   return (
     <>
       <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans dark:text-white">
-        {/* --- MODIFIED: NAVIGATION COMPONENT --- */}
         {isSaved && (
           <div className="mb-6">
             <GameweekNavigator
@@ -447,7 +519,6 @@ export default function Planner({ data }) {
           </div>
         </div>
 
-        {/* View Toggles */}
         <div className="mb-6 flex justify-center gap-2">
           <button
             onClick={() => setView("pitch")}
@@ -472,7 +543,7 @@ export default function Planner({ data }) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* LEFT COL: PITCH or LIST VIEW */}
+          {/* LEFT COL: PITCH */}
           <div
             className={`lg:col-span-2 order-1 lg:order-1 relative transition-opacity duration-300 ${
               transferSource
@@ -487,7 +558,6 @@ export default function Planner({ data }) {
                 gameweekId={viewingGw}
                 onRemovePlayer={removePlayer}
                 onPlaceholderClick={handlePlaceholderClick}
-                // Substitution props
                 substitutionSource={substitutionSource}
                 onSubstituteComplete={handleSubstitutionComplete}
                 isSubstitutionValid={isSubstitutionValid}
@@ -502,14 +572,12 @@ export default function Planner({ data }) {
                 getShirtUrl={getShirtUrl}
                 onPlayerSelect={handleSelectedPlayer}
                 gameweekId={viewingGw}
-                // Substitution Props
                 substitutionSource={substitutionSource}
                 onSubstituteComplete={handleSubstitutionComplete}
                 isSubstitutionValid={isSubstitutionValid}
               />
             )}
 
-            {/* --- IMPORT BUTTON SECTION (Below Pitch) --- */}
             <div className="mt-4 flex justify-center sm:justify-end">
               <button
                 onClick={() => setIsImportModalOpen(true)}
@@ -563,14 +631,12 @@ export default function Planner({ data }) {
                 {filteredPlayers.map((p) => {
                   const posFull = isPositionFull(p.element_type);
                   const teamFull = isTeamFull(p.team, transferSource);
-
                   const isDisabled = transferSource
                     ? p.element_type !== positionFilter || teamFull
                     : posFull || teamFull || isSaved;
 
                   const chance = p.chance_of_playing_next_round;
                   const isInjured = chance !== null && chance < 100;
-
                   const injuryColorClass =
                     chance === 0
                       ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800"
@@ -580,11 +646,8 @@ export default function Planner({ data }) {
                     <button
                       key={p.id}
                       onClick={() => {
-                        if (transferSource) {
-                          handleTransferComplete(p);
-                        } else if (!isDisabled) {
-                          addPlayer(p);
-                        }
+                        if (transferSource) handleTransferComplete(p);
+                        else if (!isDisabled) addPlayer(p);
                       }}
                       disabled={isDisabled}
                       className={`w-full text-left p-2 sm:p-3 rounded-lg flex justify-between items-center transition-all border ${
@@ -621,7 +684,6 @@ export default function Planner({ data }) {
                               </div>
                             )}
                           </div>
-
                           <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex gap-1">
                             <span>
                               {
@@ -673,7 +735,6 @@ export default function Planner({ data }) {
           </div>
         </div>
 
-        {/* Global Cancel Substitution Button */}
         {substitutionSource && (
           <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center">
             <button
@@ -685,7 +746,6 @@ export default function Planner({ data }) {
           </div>
         )}
 
-        {/* Global Cancel Transfer Button */}
         {transferSource && (
           <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center animate-bounce-subtle">
             <button
@@ -697,7 +757,6 @@ export default function Planner({ data }) {
           </div>
         )}
 
-        {/* Modals */}
         {selectedPlayer && (
           <PlayerDetailModal
             player={selectedPlayer}
@@ -706,13 +765,15 @@ export default function Planner({ data }) {
             onRemove={removePlayer}
             onSubstituteStart={handleSubstitutionStart}
             isSavedState={isSaved}
-            // Modal Actions
-            inSquad={isSelectedPlayerInSquad}
+            inSquad={
+              selectedPlayer
+                ? squad.some((p) => p.id === selectedPlayer.id)
+                : false
+            }
             isCaptain={selectedPlayer.is_captain}
             isViceCaptain={selectedPlayer.is_vice_captain}
             onSetCaptain={handleSetCaptain}
             onSetViceCaptain={handleSetViceCaptain}
-            // Transfer Prop
             onTransfer={handleTransferStart}
             isBench={squad.findIndex((p) => p.id === selectedPlayer.id) >= 11}
           />
