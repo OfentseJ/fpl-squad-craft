@@ -61,7 +61,7 @@ export default function Planner({ data }) {
     const gwEvent = getCurrentGameweek(data?.events);
     return gwEvent ? gwEvent.id : 1;
   });
-  const [viewingGw, setViewingGw] = useState(currentActualGw);
+  const [viewingGw, setViewingGw] = useState(currentActualGw + 1);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -445,6 +445,7 @@ export default function Planner({ data }) {
       setTeamInfo(info);
       setIsSaved(true);
       setView("pitch");
+      setViewingGw(currentActualGw);
       saveImportedSquad(importedSquad, info);
     } catch (err) {
       console.error(err);

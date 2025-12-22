@@ -31,9 +31,9 @@ export function usePlannerStorage() {
     }
   }, []);
 
-  // SAVE
+  // --- SAVE ---
   useEffect(() => {
-    if (isStorageLoaded && baseSquad.length > 0) {
+    if (isStorageLoaded && baseSquad.length === 15) {
       const payload = {
         baseSquad,
         plannedSquads,
@@ -44,7 +44,6 @@ export function usePlannerStorage() {
     }
   }, [baseSquad, plannedSquads, teamInfo, isStorageLoaded]);
 
-  // ACTION: Import/Reset Logic
   const saveImportedSquad = (newSquad, newTeamInfo) => {
     setBaseSquad(newSquad);
     setPlannedSquads({});
