@@ -100,12 +100,12 @@ export default function PlayerDetailModal({
     <>
       {/* Backdrop with Blur */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-fadeIn transition-opacity"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-100 animate-fadeIn transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal Slide-over */}
-      <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[400px] bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col animate-slideInRight border-l border-gray-200 dark:border-gray-800">
+      <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[400px] bg-white dark:bg-gray-900 shadow-2xl z-100 flex flex-col animate-slideInRight border-l border-gray-200 dark:border-gray-800">
         {/* --- HEADER SECTION --- */}
         <div className="relative h-56 bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden shrink-0">
           {/* Abstract background pattern */}
@@ -313,7 +313,7 @@ export default function PlayerDetailModal({
                   onClose();
                 }}
                 icon={<X size={18} />}
-                label="Remove from Squad"
+                label="Remove"
                 color="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200"
               />
             )}
