@@ -162,6 +162,4 @@ Project Link: [https://github.com/ofentsej/fpl-squad-craft](https://www.google.c
 
 Built with ❤️ by FPL enthusiasts, for FPL enthusiasts.
 
-```
-
-```
+---
