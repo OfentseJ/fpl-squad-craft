@@ -3,7 +3,7 @@ import { useRef, useCallback } from "react";
 export function useFPLApi() {
   const cache = useRef({});
 
-  const CORS_PROXY = "https://corsproxy.io/?";
+  const CORS_PROXY = "https://api.allorigins.win/raw?url=";
 
   const fetchWithCache = useCallback(async (key, url) => {
     if (cache.current[key]) return cache.current[key];
