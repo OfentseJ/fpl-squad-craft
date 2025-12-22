@@ -314,7 +314,7 @@ export default function PlayerDetailModal({
                 }}
                 icon={<X size={18} />}
                 label="Remove"
-                color="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200"
+                color="w-34 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200"
               />
             )}
           </div>
