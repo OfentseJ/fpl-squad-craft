@@ -1,62 +1,137 @@
-import { TrendingUp, Activity, Star } from "lucide-react";
+import { TrendingUp, Activity, Star, ArrowRight, Calendar } from "lucide-react";
+import { Link } from "react-router-dom";
 import { getCurrentGameweek } from "../utils/FplUtils";
 import Footer from "../components/Footer";
 
 export default function Home({ data }) {
   const currentGW = getCurrentGameweek(data?.events);
 
-  return (
-    <>
-      <div className="max-w-4xl mx-auto p-6 text-center">
-        <h2 className="text-4xl font-bold mb-4">
-          Fantasy Premier League Tools
-        </h2>
-        <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-          View FPL statistics, live match contributions, explore transfer
-          trends, and plan your team using real-time Fantasy Premier League
-          data.
-        </p>
+  const features = [
+    {
+      to: "/planner",
+      title: "Squad Planner",
+      desc: "Build your perfect team with future gameweek planning.",
+      icon: Star,
+      color: "text-yellow-500",
+      bg: "bg-yellow-50 dark:bg-yellow-900/20",
+    },
+    {
+      to: "/trends",
+      title: "Transfer Trends",
+      desc: "Analyze market moves. See who is hot and who is not.",
+      icon: TrendingUp,
+      color: "text-blue-500",
+      bg: "bg-blue-50 dark:bg-blue-900/20",
+    },
+    {
+      to: "/live",
+      title: "Live Stats",
+      desc: "Track real-time bonus points and match performance.",
+      icon: Activity,
+      color: "text-green-500",
+      bg: "bg-green-50 dark:bg-green-900/20",
+    },
+  ];
 
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+      {/* Hero Section */}
+      <div className="bg-linear-to-br from-green-600 to-emerald-900 text-white py-16 sm:py-24 px-6 text-center shadow-lg relative overflow-hidden">
+        {/* Background Pattern (Optional) */}
+        <div
+          className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, #ffffff 1px, transparent 1px)",
+            backgroundSize: "20px 20px",
+          }}
+        ></div>
+
+        <div className="relative z-10 max-w-3xl mx-auto">
+          <h2 className="text-4xl sm:text-5xl font-black mb-6 tracking-tight drop-shadow-sm">
+            Master Your FPL Season
+          </h2>
+          <p className="text-lg sm:text-xl text-green-100 mb-8 max-w-2xl mx-auto leading-relaxed">
+            Advanced statistics, live match data, and a powerful squad planner
+            to help you climb the ranks.
+          </p>
+
+          <Link
+            to="/planner"
+            className="inline-flex items-center gap-2 bg-white text-green-800 px-8 py-3 rounded-full font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200"
+          >
+            Start Planning <ArrowRight size={20} />
+          </Link>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="grow max-w-6xl mx-auto px-4 sm:px-6 -mt-10 relative z-20 pb-12">
+        {/* Status Banner */}
         {currentGW && (
-          <div className="bg-green-600 text-white p-6 rounded-xl shadow-lg">
-            <h3 className="text-2xl font-semibold mb-2">
-              Gameweek {currentGW.id}
-            </h3>
-            <p className="text-green-100">
-              {currentGW.is_current
-                ? "In Progress"
-                : `Starts: ${new Date(
-                    currentGW.deadline_time
-                  ).toLocaleDateString()}`}
-            </p>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-1 mb-10 border border-gray-100 dark:border-slate-700">
+            <div className="bg-slate-900 text-white p-6 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 relative overflow-hidden">
+              <div className="absolute right-0 top-0 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+
+              <div className="flex items-center gap-4 z-10">
+                <div className="bg-green-500 p-3 rounded-lg text-slate-900">
+                  <Calendar size={28} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                    Current Status
+                  </h3>
+                  <div className="text-2xl font-black">
+                    Gameweek {currentGW.id}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className={`z-10 px-4 py-1.5 rounded-full text-sm font-bold border ${
+                  currentGW.is_current
+                    ? "bg-green-500/20 text-green-400 border-green-500/50 animate-pulse"
+                    : "bg-yellow-500/20 text-yellow-400 border-yellow-500/50"
+                }`}
+              >
+                {currentGW.is_current
+                  ? "● LIVE NOW"
+                  : `Next Deadline: ${new Date(
+                      currentGW.deadline_time
+                    ).toLocaleDateString()}`}
+              </div>
+            </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <div className="p-6 bg-white dark:bg-gray-800 rounded-xl shadow hover:shadow-lg transition-shadow">
-            <TrendingUp className="mx-auto mb-3 text-green-600" size={40} />
-            <h4 className="font-semibold text-lg mb-2">Transfer Trends</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              See who's hot and who's not
-            </p>
-          </div>
-          <div className="p-6 bg-white dark:bg-gray-800 rounded-xl shadow hover:shadow-lg transition-shadow">
-            <Activity className="mx-auto mb-3 text-green-600" size={40} />
-            <h4 className="font-semibold text-lg mb-2">Live Stats</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Real-time BPS and performance
-            </p>
-          </div>
-          <div className="p-6 bg-white dark:bg-gray-800 rounded-xl shadow hover:shadow-lg transition-shadow">
-            <Star className="mx-auto mb-3 text-green-600" size={40} />
-            <h4 className="font-semibold text-lg mb-2">Squad Planner</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Build your perfect team
-            </p>
-          </div>
+        {/* Feature Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {features.map((feature, i) => {
+            const Icon = feature.icon;
+            return (
+              <Link
+                key={i}
+                to={feature.to}
+                className="group bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 dark:border-slate-700 transition-all duration-300 hover:-translate-y-1"
+              >
+                <div
+                  className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 transition-colors ${feature.bg}`}
+                >
+                  <Icon className={feature.color} size={28} />
+                </div>
+                <h4 className="font-bold text-xl mb-2 text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                  {feature.title}
+                </h4>
+                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                  {feature.desc}
+                </p>
+              </Link>
+            );
+          })}
         </div>
       </div>
+
       <Footer />
-    </>
+    </div>
   );
 }

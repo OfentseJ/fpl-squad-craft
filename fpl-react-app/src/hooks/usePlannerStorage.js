@@ -1,5 +1,3 @@
-// src/hooks/usePlannerStorage.js
-
 import { useState, useEffect } from "react";
 
 const STORAGE_KEY = "fpl_planner_v1";
@@ -7,7 +5,6 @@ const STORAGE_KEY = "fpl_planner_v1";
 export function usePlannerStorage() {
   const [baseSquad, setBaseSquad] = useState([]);
   const [plannedSquads, setPlannedSquads] = useState({});
-  // 1. NEW STATE
   const [teamInfo, setTeamInfo] = useState(null);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
 
@@ -23,7 +20,6 @@ export function usePlannerStorage() {
         if (parsed.plannedSquads) {
           setPlannedSquads(parsed.plannedSquads);
         }
-        // 2. LOAD INFO
         if (parsed.teamInfo) {
           setTeamInfo(parsed.teamInfo);
         }
@@ -41,7 +37,7 @@ export function usePlannerStorage() {
       const payload = {
         baseSquad,
         plannedSquads,
-        teamInfo, // 3. SAVE INFO
+        teamInfo,
         updatedAt: Date.now(),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -49,19 +45,17 @@ export function usePlannerStorage() {
   }, [baseSquad, plannedSquads, teamInfo, isStorageLoaded]);
 
   // ACTION: Import/Reset Logic
-  // 4. Update signature to accept info
   const saveImportedSquad = (newSquad, newTeamInfo) => {
     setBaseSquad(newSquad);
     setPlannedSquads({});
-    setTeamInfo(newTeamInfo); // Set state
+    setTeamInfo(newTeamInfo);
 
-    // Force immediate save
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
         baseSquad: newSquad,
         plannedSquads: {},
-        teamInfo: newTeamInfo, // Save to storage
+        teamInfo: newTeamInfo,
         updatedAt: Date.now(),
       })
     );
@@ -70,7 +64,7 @@ export function usePlannerStorage() {
   const clearStorage = () => {
     setBaseSquad([]);
     setPlannedSquads({});
-    setTeamInfo(null); // Clear info
+    setTeamInfo(null);
     localStorage.removeItem(STORAGE_KEY);
   };
 

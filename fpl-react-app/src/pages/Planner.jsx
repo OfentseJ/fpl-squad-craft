@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
-  Users,
   Save,
   RotateCcw,
   Download,
@@ -8,7 +7,9 @@ import {
   Info,
   AlertTriangle,
   RefreshCw,
-  Lock, // Imported Lock icon for visual feedback if needed later
+  Lock,
+  List,
+  LayoutGrid,
 } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
@@ -21,9 +22,10 @@ import { getCurrentGameweek } from "../utils/FplUtils";
 import GameweekNavigator from "../components/Planner/GameweekNavigator";
 import { usePlannerStorage } from "../hooks/usePlannerStorage";
 import TeamInfoBanner from "../components/Planner/TeamInfoBanner";
+import LoadingSkeleton from "../components/LoadingSkeleton";
 
 export default function Planner({ data }) {
-  // --- STORAGE HOOK ---
+  // --- HOOKS ---
   const {
     baseSquad,
     setBaseSquad,
@@ -36,8 +38,11 @@ export default function Planner({ data }) {
     isStorageLoaded,
   } = usePlannerStorage();
 
+  const { getShirtUrl, getFixtures, importUserTeam, getUserTeamInfo } =
+    useFPLApi();
+
   // --- LOCAL STATE ---
-  const [squad, setSquad] = useState([]); // Visual State
+  const [squad, setSquad] = useState([]);
   const [filteredPlayers, setFilteredPlayers] = useState([]);
   const [activeSortMetric, setActiveSortMetric] = useState("total_points");
 
@@ -52,10 +57,6 @@ export default function Planner({ data }) {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [fixtures, setFixtures] = useState([]);
 
-  const { getShirtUrl, getFixtures, importUserTeam, getUserTeamInfo } =
-    useFPLApi();
-
-  // --- GAMEWEEK STATE ---
   const [currentActualGw, setCurrentActualGw] = useState(() => {
     const gwEvent = getCurrentGameweek(data?.events);
     return gwEvent ? gwEvent.id : 1;
@@ -77,7 +78,6 @@ export default function Planner({ data }) {
     }
   }, [data]);
 
-  // Load from Storage
   useEffect(() => {
     if (isStorageLoaded) {
       if (baseSquad.length > 0 && squad.length === 0) {
@@ -88,27 +88,28 @@ export default function Planner({ data }) {
   }, [isStorageLoaded, baseSquad]);
 
   // --- REFRESH DATA LOGIC (Background Sync) ---
+  const lastRefreshedId = useRef(null);
   useEffect(() => {
     if (isStorageLoaded && teamInfo?.id) {
+      if (lastRefreshedId.current === teamInfo.id) return;
+      lastRefreshedId.current = teamInfo.id;
+
       const refreshTeamStats = async () => {
         try {
           const latestInfo = await getUserTeamInfo(teamInfo.id);
-
           if (latestInfo) {
             if (
               latestInfo.summary_overall_points !==
                 teamInfo.summary_overall_points ||
               latestInfo.summary_overall_rank !== teamInfo.summary_overall_rank
             ) {
-              console.log(" refreshing team stats...");
               setTeamInfo(latestInfo);
             }
           }
         } catch (err) {
-          console.warn("Could not refresh team stats:", err);
+          console.warn("Background refresh failed:", err);
         }
       };
-
       refreshTeamStats();
     }
   }, [isStorageLoaded, teamInfo?.id, getUserTeamInfo, setTeamInfo]);
@@ -117,19 +118,16 @@ export default function Planner({ data }) {
   useEffect(() => {
     if (!isSaved) return;
 
-    // A. Current Week (Active Squad)
     if (viewingGw === currentActualGw) {
       if (baseSquad.length > 0) setSquad(baseSquad);
       return;
     }
 
-    // B. Future Week (Existing Plan)
     if (plannedSquads[viewingGw]) {
       setSquad(plannedSquads[viewingGw]);
       return;
     }
 
-    // C. Future Week (New Plan - Clone Previous)
     const prevGw = viewingGw - 1;
     const prevSquad =
       prevGw === currentActualGw ? baseSquad : plannedSquads[prevGw];
@@ -159,9 +157,9 @@ export default function Planner({ data }) {
 
   // --- NEW: RESTRICTION LOGIC ---
   const ensurePlanningMode = () => {
-    if (baseSquad.length === 0) return true;
+    if (baseSquad.length === 0) return true; // Manual mode exception
 
-    if (viewingGw === currentActualGw && isSaved) {
+    if (viewingGw === currentActualGw) {
       const confirmSwitch = window.confirm(
         "Modifications are restricted on the Active Squad.\n\nSwitch to Planning Mode (Next GW) to make changes?"
       );
@@ -192,15 +190,12 @@ export default function Planner({ data }) {
   };
 
   // --- ACTIONS ---
-
   const addPlayer = (player) => {
-    if (!ensurePlanningMode()) return; // <--- RESTRICTION
-
+    if (!ensurePlanningMode()) return;
     if (squad.length >= 15) return;
     if (isPositionFull(player.element_type)) return;
     if (isTeamFull(player.team)) return;
 
-    // Use updateSquadState to keep navigator visible
     const newSquad = [
       ...squad,
       { ...player, starting: true, teams: data.teams },
@@ -209,14 +204,12 @@ export default function Planner({ data }) {
   };
 
   const removePlayer = (playerId) => {
-    if (!ensurePlanningMode()) return; // <--- RESTRICTION
-
+    if (!ensurePlanningMode()) return;
     const newSquad = squad.filter((p) => p.id !== playerId);
     updateSquadState(newSquad);
   };
 
   const handlePlaceholderClick = (positionId) => {
-    // We allow clicking empty slots, but adding will be blocked by addPlayer
     setPositionFilter(positionId);
     const listElement = document.getElementById("player-list-section");
     if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
@@ -266,7 +259,7 @@ export default function Planner({ data }) {
   };
 
   const handleSubstitutionStart = (playerId) => {
-    if (!ensurePlanningMode()) return; // <--- RESTRICTION
+    if (!ensurePlanningMode()) return;
     setSubstitutionSource(playerId);
     setSelectedPlayer(null);
   };
@@ -301,8 +294,7 @@ export default function Planner({ data }) {
 
   // --- TRANSFERS ---
   const handleTransferStart = (playerId) => {
-    if (!ensurePlanningMode()) return; // <--- RESTRICTION
-
+    if (!ensurePlanningMode()) return;
     const playerToTransfer = squad.find((p) => p.id === playerId);
     if (!playerToTransfer) return;
     setTransferSource(playerId);
@@ -327,7 +319,6 @@ export default function Planner({ data }) {
       return;
     }
 
-    // Helper to perform swap on any list
     const performSwap = (list) => {
       const newList = [...list];
       const idx = newList.findIndex((p) => p.id === oldPlayer.id);
@@ -343,16 +334,13 @@ export default function Planner({ data }) {
       return newList;
     };
 
-    // Update Visuals
     const updatedVisualSquad = performSwap(squad);
     setSquad(updatedVisualSquad);
     setTransferSource(null);
 
-    // Ripple Logic (Only for future weeks since base is restricted)
     setPlannedSquads((prev) => {
       const nextState = { ...prev };
       nextState[viewingGw] = updatedVisualSquad;
-
       Object.keys(nextState).forEach((gw) => {
         if (parseInt(gw) > viewingGw) {
           nextState[gw] = performSwap(nextState[gw]);
@@ -380,42 +368,37 @@ export default function Planner({ data }) {
       let msg = "Cannot save team:\n";
       if (!hasCaptain) msg += "- Missing Captain (C)\n";
       if (!hasViceCaptain) msg += "- Missing Vice-Captain (V)\n";
-      msg += "\nClick on a player to open details and assign roles.";
-
       alert(msg);
       return;
     }
 
-    if (squad.length === 15) {
-      const gks = squad.filter((p) => p.element_type === 1);
-      const defs = squad.filter((p) => p.element_type === 2);
-      const mids = squad.filter((p) => p.element_type === 3);
-      const fwds = squad.filter((p) => p.element_type === 4);
+    const gks = squad.filter((p) => p.element_type === 1);
+    const defs = squad.filter((p) => p.element_type === 2);
+    const mids = squad.filter((p) => p.element_type === 3);
+    const fwds = squad.filter((p) => p.element_type === 4);
 
-      const startingXI = [
-        gks[0],
-        ...defs.slice(0, 4),
-        ...mids.slice(0, 4),
-        ...fwds.slice(0, 2),
-      ];
-      const bench = [gks[1], defs[4], mids[4], fwds[2]];
-      const organizedSquad = [...startingXI, ...bench];
+    const startingXI = [
+      gks[0],
+      ...defs.slice(0, 4),
+      ...mids.slice(0, 4),
+      ...fwds.slice(0, 2),
+    ];
+    const bench = [gks[1], defs[4], mids[4], fwds[2]];
+    const organizedSquad = [...startingXI, ...bench];
 
-      setSquad(organizedSquad);
-      setIsSaved(true);
-      setView("pitch");
+    setSquad(organizedSquad);
+    setIsSaved(true);
+    setView("pitch");
 
-      if (viewingGw === currentActualGw) {
+    if (viewingGw === currentActualGw) {
+      setBaseSquad(organizedSquad);
+    } else {
+      setPlannedSquads((prev) => ({
+        ...prev,
+        [viewingGw]: organizedSquad,
+      }));
+      if (baseSquad.length === 0) {
         setBaseSquad(organizedSquad);
-      } else {
-        setPlannedSquads((prev) => ({
-          ...prev,
-          [viewingGw]: organizedSquad,
-        }));
-
-        if (baseSquad.length === 0) {
-          setBaseSquad(organizedSquad);
-        }
       }
     }
   };
@@ -427,7 +410,6 @@ export default function Planner({ data }) {
       setSubstitutionSource(null);
       setTransferSource(null);
       clearStorage();
-
       setViewingGw(currentActualGw + 1);
     }
   };
@@ -435,7 +417,6 @@ export default function Planner({ data }) {
   const handleImportTeam = async (teamId) => {
     try {
       const currentEvent = data.events.find((e) => e.is_current)?.id || 1;
-
       const [picks, info] = await Promise.all([
         importUserTeam(teamId, currentEvent),
         getUserTeamInfo(teamId),
@@ -464,16 +445,16 @@ export default function Planner({ data }) {
       setTeamInfo(info);
       setIsSaved(true);
       setView("pitch");
-      saveImportedSquad(importedSquad);
+      saveImportedSquad(importedSquad, info);
     } catch (err) {
       console.error(err);
+      alert("Error importing team.");
     }
   };
 
   // --- CAPTAINCY ---
   const handleSetCaptain = (playerId) => {
-    if (!ensurePlanningMode()) return; // <--- RESTRICTION
-
+    if (!ensurePlanningMode()) return;
     const targetIsCurrentVC = squad.find(
       (p) => p.id === playerId
     )?.is_vice_captain;
@@ -481,7 +462,11 @@ export default function Planner({ data }) {
       if (p.id === playerId)
         return { ...p, is_captain: true, is_vice_captain: false };
       if (p.is_captain)
-        return { ...p, is_captain: false, is_vice_captain: targetIsCurrentVC };
+        return {
+          ...p,
+          is_captain: false,
+          is_vice_captain: targetIsCurrentVC,
+        };
       return p;
     });
     updateSquadState(newSquad);
@@ -489,8 +474,7 @@ export default function Planner({ data }) {
   };
 
   const handleSetViceCaptain = (playerId) => {
-    if (!ensurePlanningMode()) return; // <--- RESTRICTION
-
+    if (!ensurePlanningMode()) return;
     const targetIsCurrentCaptain = squad.find(
       (p) => p.id === playerId
     )?.is_captain;
@@ -529,14 +513,19 @@ export default function Planner({ data }) {
     ict_index: "ICT",
   };
 
+  if (!isStorageLoaded || !data) {
+    return <LoadingSkeleton />;
+  }
+
   return (
-    <>
-      <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans dark:text-white">
-        {/* Display Team Info if available and Saved */}
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+      <div className="grow p-4 sm:p-6 max-w-7xl mx-auto w-full font-sans dark:text-white">
+        {/* --- 1. Manager Info --- */}
         {isSaved && teamInfo && <TeamInfoBanner teamInfo={teamInfo} />}
 
+        {/* --- 2. Gameweek Navigator --- */}
         {isSaved && (
-          <div className="mb-6">
+          <div className="sticky top-16 z-30 dark:bg-gray-900/95 bg-transparent py-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0 transition-all border-b border-transparent data-[stuck=true]:border-gray-200">
             <GameweekNavigator
               viewingGw={viewingGw}
               currentActualGw={currentActualGw}
@@ -545,83 +534,102 @@ export default function Planner({ data }) {
           </div>
         )}
 
-        {/* Summary Banner */}
-        <div className="bg-linear-to-r from-slate-800 to-slate-900 text-white p-4 rounded-xl mb-6 shadow-lg border-t-4 border-green-500">
-          <div className="flex justify-around items-center text-center">
-            <div>
-              <div className="text-xl sm:text-2xl font-bold">
-                {squad.length}/15
+        {/* --- 3. Summary Dashboard --- */}
+        {/* Removed 'sticky' class here */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            {/* Left: Squad Stats */}
+            <div className="flex items-center gap-6 w-full sm:w-auto justify-center sm:justify-start">
+              <div className="text-center sm:text-left">
+                <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
+                  Squad Size
+                </div>
+                <div
+                  className={`text-2xl font-black ${
+                    squad.length === 15
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-gray-800 dark:text-white"
+                  }`}
+                >
+                  {squad.length}
+                  <span className="text-lg text-gray-400 font-medium">/15</span>
+                </div>
               </div>
-              <div className="text-[10px] sm:text-xs text-gray-400 uppercase">
-                Selected
+              <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
+              <div className="text-center sm:text-left">
+                <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
+                  Bank Value
+                </div>
+                <div className="text-2xl font-black text-green-600 dark:text-green-400">
+                  £{totalCost.toFixed(1)}m
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-3">
+            {/* Right: Actions */}
+            <div className="flex flex-wrap justify-center gap-2">
+              {/* View Toggle */}
+              <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded-lg flex items-center">
+                <button
+                  onClick={() => setView("pitch")}
+                  className={`p-2 rounded-md transition-all ${
+                    view === "pitch"
+                      ? "bg-white dark:bg-gray-600 text-green-600 dark:text-green-400 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
+                  title="Pitch View"
+                >
+                  <LayoutGrid size={20} />
+                </button>
+                <button
+                  onClick={() => setView("list")}
+                  className={`p-2 rounded-md transition-all ${
+                    view === "list"
+                      ? "bg-white dark:bg-gray-600 text-green-600 dark:text-green-400 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
+                  title="List View"
+                >
+                  <List size={20} />
+                </button>
+              </div>
+
+              {/* Reset Button */}
+              {squad.length > 0 && (
+                <button
+                  onClick={handleResetTeam}
+                  className="p-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
+                  title="Reset Team"
+                >
+                  <RotateCcw size={20} />
+                </button>
+              )}
+
+              {/* Save Button */}
               {!isSaved && (
                 <button
                   onClick={handleSaveTeam}
                   disabled={squad.length < 15}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold shadow-md transition-all ${
+                  className={`flex items-center gap-2 px-5 py-2 rounded-lg font-bold shadow-md transition-all ${
                     squad.length === 15
-                      ? "bg-green-600 hover:bg-green-500 text-white animate-pulse cursor-pointer"
-                      : "bg-gray-600 text-gray-400 cursor-not-allowed opacity-60"
+                      ? "bg-green-600 hover:bg-green-700 text-white cursor-pointer hover:-translate-y-0.5"
+                      : "bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
                   }`}
                 >
-                  <Save size={18} /> Save
+                  <Save size={18} /> Save Team
                 </button>
               )}
-              {squad.length > 0 && (
-                <button
-                  onClick={handleResetTeam}
-                  className="p-2 bg-gray-700 hover:bg-red-900/50 text-gray-300 hover:text-red-400 rounded-lg transition-colors"
-                  title="Reset Team"
-                >
-                  <RotateCcw size={18} />
-                </button>
-              )}
-            </div>
-
-            <div>
-              <div className="text-xl sm:text-2xl font-bold text-green-400">
-                £{totalCost.toFixed(1)}m
-              </div>
-              <div className="text-[10px] sm:text-xs text-gray-400 uppercase">
-                Total Value
-              </div>
             </div>
           </div>
         </div>
 
-        <div className="mb-6 flex justify-center gap-2">
-          <button
-            onClick={() => setView("pitch")}
-            className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${
-              view === "pitch"
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-            }`}
-          >
-            Pitch View
-          </button>
-          <button
-            onClick={() => setView("list")}
-            className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${
-              view === "list"
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-            }`}
-          >
-            List View
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* LEFT COL: PITCH */}
+        {/* --- Main Content Grid --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 relative items-start">
+          {/* LEFT COL: PITCH (Span 8) */}
           <div
-            className={`lg:col-span-2 order-1 lg:order-1 relative transition-opacity duration-300 ${
+            className={`lg:col-span-8 order-1 relative transition-all duration-300 ${
               transferSource
-                ? "opacity-50 pointer-events-none grayscale"
+                ? "opacity-40 pointer-events-none grayscale blur-sm"
                 : "opacity-100"
             }`}
           >
@@ -652,42 +660,50 @@ export default function Planner({ data }) {
               />
             )}
 
-            <div className="mt-4 flex justify-center sm:justify-end">
-              <button
-                onClick={() => setIsImportModalOpen(true)}
-                className="group flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all duration-200 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:text-green-700 hover:border-green-300 hover:shadow-md hover:-translate-y-0.5 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-750 dark:hover:text-green-400 dark:hover:border-green-600"
-              >
-                <div className="p-1.5 rounded-lg bg-gray-100 group-hover:bg-green-100 dark:bg-gray-700 dark:group-hover:bg-green-900/30 transition-colors">
-                  <Download
-                    size={16}
-                    className="text-gray-500 group-hover:text-green-600 dark:text-gray-400 dark:group-hover:text-green-400"
-                  />
-                </div>
-                <span>Import FPL Team</span>
-              </button>
-            </div>
+            {/* Import CTA */}
+            {squad.length === 0 && (
+              <div className="mt-8 text-center">
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 px-6 py-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform"
+                >
+                  <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-600">
+                    <Download size={24} />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-gray-900 dark:text-white">
+                      Import FPL Team
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Enter your Team ID to load
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* RIGHT COL: PLAYER SELECTOR */}
+          {/* RIGHT COL: PLAYER SELECTOR (Span 4) */}
+          {/* Note: I added sticky here too, but adjusted top to fit below navigator */}
           <div
             id="player-list-section"
-            className={`lg:col-span-1 order-2 lg:order-2 transition-all duration-300 ${
+            className={`lg:col-span-4 order-2 transition-all duration-300 ${
               substitutionSource
                 ? "opacity-40 grayscale pointer-events-none"
                 : "opacity-100"
             }`}
           >
             <div
-              className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden sticky top-4 border transition-colors duration-300 ${
+              className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden sticky top-36 border transition-colors duration-300 ${
                 transferSource
-                  ? "border-amber-500 ring-2 ring-amber-500/30"
-                  : "border-gray-100 dark:border-gray-700"
+                  ? "border-amber-500 ring-4 ring-amber-500/20"
+                  : "border-gray-200 dark:border-gray-700"
               }`}
             >
               {transferSource && (
-                <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2">
-                  <RefreshCw size={14} className="animate-spin-slow" /> Select a
-                  replacement
+                <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-200 px-4 py-3 text-sm font-bold text-center flex items-center justify-center gap-2 border-b border-amber-100 dark:border-amber-800/50">
+                  <RefreshCw size={16} className="animate-spin-slow" />
+                  Select replacement player
                 </div>
               )}
 
@@ -701,8 +717,9 @@ export default function Planner({ data }) {
                 onPositionFilterChange={setPositionFilter}
               />
 
-              <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 bg-white dark:bg-gray-800">
+              <div className="max-h-[600px] overflow-y-auto p-2 space-y-1 bg-gray-50/50 dark:bg-gray-900/20">
                 {filteredPlayers.map((p) => {
+                  // ... (Existing mapping logic for filteredPlayers) ...
                   const posFull = isPositionFull(p.element_type);
                   const teamFull = isTeamFull(p.team, transferSource);
                   const isDisabled = transferSource
@@ -713,8 +730,8 @@ export default function Planner({ data }) {
                   const isInjured = chance !== null && chance < 100;
                   const injuryColorClass =
                     chance === 0
-                      ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800"
-                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800";
+                      ? "bg-red-50 text-red-700 border-red-200"
+                      : "bg-yellow-50 text-yellow-700 border-yellow-200";
 
                   return (
                     <button
@@ -724,48 +741,48 @@ export default function Planner({ data }) {
                         else if (!isDisabled) addPlayer(p);
                       }}
                       disabled={isDisabled}
-                      className={`w-full text-left p-2 sm:p-3 rounded-lg flex justify-between items-center transition-all border ${
+                      className={`w-full text-left p-2.5 rounded-xl flex justify-between items-center transition-all border group ${
                         isDisabled
-                          ? "bg-gray-50 dark:bg-gray-800/50 opacity-50 cursor-not-allowed border-transparent grayscale"
+                          ? "opacity-40 cursor-not-allowed bg-transparent border-transparent grayscale"
                           : transferSource
-                          ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/20 cursor-pointer"
-                          : "bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-900/20 border-gray-100 dark:border-gray-700 cursor-pointer hover:border-green-200 dark:hover:border-green-800 hover:shadow-sm"
+                          ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-amber-400 hover:shadow-md cursor-pointer"
+                          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:shadow-md cursor-pointer"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 relative">
+                        <div className="w-8 h-8 relative shrink-0">
                           <img
                             src={getShirtUrl(
                               data.teams.find((t) => t.id === p.team) || [],
                               p.element_type === 1
                             )}
                             alt="kit"
-                            className="object-contain"
+                            className="object-contain drop-shadow-sm group-hover:scale-110 transition-transform"
                           />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <div className="font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-100">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <div className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">
                               {p.web_name}
                             </div>
                             {isInjured && (
                               <div
                                 title={p.news}
-                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${injuryColorClass}`}
+                                className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold border ${injuryColorClass}`}
                               >
                                 <AlertTriangle size={10} />
-                                <span>{chance}%</span>
+                                {chance}%
                               </div>
                             )}
                           </div>
-                          <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 flex gap-1">
-                            <span>
+                          <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                            <span className="uppercase font-bold tracking-wider">
                               {
                                 data.teams.find((t) => t.id === p.team)
                                   ?.short_name
                               }
                             </span>
-                            <span>•</span>
+                            <span className="text-gray-300">•</span>
                             <span>
                               {p.element_type === 1
                                 ? "GKP"
@@ -776,19 +793,20 @@ export default function Planner({ data }) {
                                 : "FWD"}
                             </span>
                             {teamFull && (
-                              <span className="text-red-500 dark:text-red-400 font-bold ml-1">
+                              <span className="text-red-500 font-bold ml-1">
                                 (Max 3)
                               </span>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-row gap-4 justify-center items-center">
+
+                      <div className="flex items-center gap-3 pl-2">
                         <div className="text-right">
-                          <div className="font-bold text-sm text-green-700 dark:text-green-400">
+                          <div className="font-bold text-sm text-green-600 dark:text-green-400">
                             {getMetricDisplay(p, activeSortMetric)}
                           </div>
-                          <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                          <div className="text-[9px] uppercase text-gray-400 font-bold">
                             {metricLabels[activeSortMetric] || "Pts"}
                           </div>
                         </div>
@@ -797,8 +815,9 @@ export default function Planner({ data }) {
                             e.stopPropagation();
                             handleSelectedPlayer(p);
                           }}
+                          className="p-1.5 rounded-full text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                         >
-                          <Info size={16} className="text-blue-500" />
+                          <Info size={18} />
                         </div>
                       </div>
                     </button>
@@ -809,11 +828,12 @@ export default function Planner({ data }) {
           </div>
         </div>
 
+        {/* Global Action Buttons (Fixed Bottom) */}
         {substitutionSource && (
-          <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center">
+          <div className="fixed bottom-8 left-0 right-0 z-50 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300">
             <button
               onClick={handleCancelSubstitution}
-              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-red-700 border-2 border-white"
+              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-red-700 border-4 border-white dark:border-gray-900 transform hover:scale-105 transition-all"
             >
               <XCircle size={20} /> Cancel Substitution
             </button>
@@ -821,16 +841,17 @@ export default function Planner({ data }) {
         )}
 
         {transferSource && (
-          <div className="fixed bottom-10 left-0 right-0 z-50 flex justify-center animate-bounce-subtle">
+          <div className="fixed bottom-8 left-0 right-0 z-50 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300">
             <button
               onClick={handleCancelTransfer}
-              className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-amber-700 border-2 border-white"
+              className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-amber-700 border-4 border-white dark:border-gray-900 transform hover:scale-105 transition-all"
             >
               <XCircle size={20} /> Cancel Transfer
             </button>
           </div>
         )}
 
+        {/* Modals remain unchanged */}
         {selectedPlayer && (
           <PlayerDetailModal
             player={selectedPlayer}
@@ -861,6 +882,6 @@ export default function Planner({ data }) {
         />
       </div>
       <Footer />
-    </>
+    </div>
   );
 }

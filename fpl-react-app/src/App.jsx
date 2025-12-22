@@ -1,7 +1,6 @@
 import { Routes, Route, HashRouter } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
-import DarkModeToggle from "./components/DarkModeToggle";
 import LoadingSkeleton from "./components/LoadingSkeleton";
 import ErrorDisplay from "./components/ErrorDisplay";
 import Home from "./pages/Home";
@@ -56,7 +55,6 @@ export default function App() {
             <Route path="/live" element={<Live data={data} />} />
             <Route path="/planner" element={<Planner data={data} />} />
           </Routes>
-          <DarkModeToggle />
         </div>
       </HashRouter>
     </DarkModeContext.Provider>
