@@ -52,8 +52,6 @@ git clone [https://github.com/ofentsej/fpl-squad-craft.git](https://github.com/o
 cd fpl-squad-craft
 ```
 
-````
-
 2. **Install dependencies**
 
 ```bash
@@ -167,4 +165,3 @@ Built with ❤️ by FPL enthusiasts, for FPL enthusiasts.
 ```
 
 ```
-````
