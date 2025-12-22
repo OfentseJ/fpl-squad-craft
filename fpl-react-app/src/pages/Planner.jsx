@@ -20,6 +20,7 @@ import { SquadListView } from "../components/Planner/SquadListView";
 import { getCurrentGameweek } from "../utils/FplUtils";
 import GameweekNavigator from "../components/Planner/GameweekNavigator";
 import { usePlannerStorage } from "../hooks/usePlannerStorage";
+import TeamInfoBanner from "../components/Planner/TeamInfoBanner";
 
 export default function Planner({ data }) {
   // --- STORAGE HOOK ---
@@ -28,6 +29,8 @@ export default function Planner({ data }) {
     setBaseSquad,
     plannedSquads,
     setPlannedSquads,
+    teamInfo,
+    setTeamInfo,
     saveImportedSquad,
     clearStorage,
     isStorageLoaded,
@@ -49,7 +52,8 @@ export default function Planner({ data }) {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [fixtures, setFixtures] = useState([]);
 
-  const { getShirtUrl, getFixtures, importUserTeam } = useFPLApi();
+  const { getShirtUrl, getFixtures, importUserTeam, getUserTeamInfo } =
+    useFPLApi();
 
   // --- GAMEWEEK STATE ---
   const [currentActualGw, setCurrentActualGw] = useState(() => {
@@ -82,6 +86,32 @@ export default function Planner({ data }) {
       }
     }
   }, [isStorageLoaded, baseSquad]);
+
+  // --- REFRESH DATA LOGIC (Background Sync) ---
+  useEffect(() => {
+    if (isStorageLoaded && teamInfo?.id) {
+      const refreshTeamStats = async () => {
+        try {
+          const latestInfo = await getUserTeamInfo(teamInfo.id);
+
+          if (latestInfo) {
+            if (
+              latestInfo.summary_overall_points !==
+                teamInfo.summary_overall_points ||
+              latestInfo.summary_overall_rank !== teamInfo.summary_overall_rank
+            ) {
+              console.log(" refreshing team stats...");
+              setTeamInfo(latestInfo);
+            }
+          }
+        } catch (err) {
+          console.warn("Could not refresh team stats:", err);
+        }
+      };
+
+      refreshTeamStats();
+    }
+  }, [isStorageLoaded, teamInfo?.id, getUserTeamInfo, setTeamInfo]);
 
   // --- NAVIGATION SNAPSHOT LOGIC ---
   useEffect(() => {
@@ -129,6 +159,8 @@ export default function Planner({ data }) {
 
   // --- NEW: RESTRICTION LOGIC ---
   const ensurePlanningMode = () => {
+    if (baseSquad.length === 0) return true;
+
     if (viewingGw === currentActualGw && isSaved) {
       const confirmSwitch = window.confirm(
         "Modifications are restricted on the Active Squad.\n\nSwitch to Planning Mode (Next GW) to make changes?"
@@ -137,9 +169,9 @@ export default function Planner({ data }) {
         setViewingGw(currentActualGw + 1);
         setSelectedPlayer(null);
       }
-      return false; // Block the current action
+      return false;
     }
-    return true; // Allow action
+    return true;
   };
 
   // --- EXISTING HELPERS ---
@@ -336,6 +368,24 @@ export default function Planner({ data }) {
 
   // --- SAVE / IMPORT ---
   const handleSaveTeam = () => {
+    if (squad.length < 15) {
+      alert("You need 15 players to save your team.");
+      return;
+    }
+
+    const hasCaptain = squad.some((p) => p.is_captain);
+    const hasViceCaptain = squad.some((p) => p.is_vice_captain);
+
+    if (!hasCaptain || !hasViceCaptain) {
+      let msg = "Cannot save team:\n";
+      if (!hasCaptain) msg += "- Missing Captain (C)\n";
+      if (!hasViceCaptain) msg += "- Missing Vice-Captain (V)\n";
+      msg += "\nClick on a player to open details and assign roles.";
+
+      alert(msg);
+      return;
+    }
+
     if (squad.length === 15) {
       const gks = squad.filter((p) => p.element_type === 1);
       const defs = squad.filter((p) => p.element_type === 2);
@@ -351,9 +401,22 @@ export default function Planner({ data }) {
       const bench = [gks[1], defs[4], mids[4], fwds[2]];
       const organizedSquad = [...startingXI, ...bench];
 
-      updateSquadState(organizedSquad);
+      setSquad(organizedSquad);
       setIsSaved(true);
       setView("pitch");
+
+      if (viewingGw === currentActualGw) {
+        setBaseSquad(organizedSquad);
+      } else {
+        setPlannedSquads((prev) => ({
+          ...prev,
+          [viewingGw]: organizedSquad,
+        }));
+
+        if (baseSquad.length === 0) {
+          setBaseSquad(organizedSquad);
+        }
+      }
     }
   };
 
@@ -364,13 +427,20 @@ export default function Planner({ data }) {
       setSubstitutionSource(null);
       setTransferSource(null);
       clearStorage();
+
+      setViewingGw(currentActualGw + 1);
     }
   };
 
   const handleImportTeam = async (teamId) => {
     try {
       const currentEvent = data.events.find((e) => e.is_current)?.id || 1;
-      const picks = await importUserTeam(teamId, currentEvent);
+
+      const [picks, info] = await Promise.all([
+        importUserTeam(teamId, currentEvent),
+        getUserTeamInfo(teamId),
+      ]);
+
       if (!picks || picks.length === 0) throw new Error("No players found.");
 
       const importedSquad = picks
@@ -391,6 +461,7 @@ export default function Planner({ data }) {
       if (importedSquad.length < 15) throw new Error("Incomplete squad.");
 
       setSquad(importedSquad);
+      setTeamInfo(info);
       setIsSaved(true);
       setView("pitch");
       saveImportedSquad(importedSquad);
@@ -461,6 +532,9 @@ export default function Planner({ data }) {
   return (
     <>
       <div className="p-2 sm:p-4 max-w-7xl mx-auto font-sans dark:text-white">
+        {/* Display Team Info if available and Saved */}
+        {isSaved && teamInfo && <TeamInfoBanner teamInfo={teamInfo} />}
+
         {isSaved && (
           <div className="mb-6">
             <GameweekNavigator

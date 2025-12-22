@@ -25,68 +25,84 @@ export default function PlayerShirt({
   const chance = player.chance_of_playing_next_round;
   const isInjured = chance !== null && chance < 100;
 
-  // Badge Logic
   const badgeBg = chance === 0 ? "bg-red-600" : "bg-yellow-400";
   const badgeText = chance === 0 ? "text-white" : "text-black";
 
-  // Name Box Logic
   let statusBg =
     "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700";
   let statusText = "text-gray-900 dark:text-white";
-  let subText = "text-gray-600 dark:text-gray-400";
 
   if (isInjured) {
     if (chance === 0) {
       statusBg = "bg-red-500 border-red-600";
       statusText = "text-white";
-      subText = "text-red-100";
     } else {
       statusBg = "bg-yellow-400 border-yellow-500";
       statusText = "text-black";
-      subText = "text-yellow-900/70";
     }
   }
 
-  // --- GW SPECIFIC FIXTURE LOGIC ---
+  // --- GW SPECIFIC FIXTURE LOGIC (UPDATED FOR DGW) ---
   let difficulty = 0;
   let opponentDisplay = "—";
+  let isMatchFinished = false;
 
   if (fixtures && fixtures.length > 0) {
+    // 1. Get all fixtures for this player's team
     const teamFixtures = fixtures.filter(
       (f) => f.team_h === player.team || f.team_a === player.team
     );
 
-    let relevantFixture = null;
+    let activeFixtures = [];
 
+    // 2. Filter for the specific Gameweek
     if (gameweekId) {
-      relevantFixture = teamFixtures.find((f) => f.event === gameweekId);
+      activeFixtures = teamFixtures.filter((f) => f.event === gameweekId);
     } else {
-      relevantFixture = teamFixtures.find((f) => !f.finished);
+      // Fallback: Find the very next fixture (Single only logic for fallback)
+      const nextFix = teamFixtures.find((f) => !f.finished);
+      if (nextFix) activeFixtures = [nextFix];
     }
 
-    if (relevantFixture) {
-      const isHome = relevantFixture.team_h === player.team;
-      const opponentId = isHome
-        ? relevantFixture.team_a
-        : relevantFixture.team_h;
-      const opponentTeam = teams.find((t) => t.id === opponentId);
+    // 3. Process Fixtures (Handle Single or Double)
+    if (activeFixtures.length > 0) {
+      // Check if ALL matches in this GW are finished
+      isMatchFinished = activeFixtures.every((f) => f.finished);
 
-      difficulty = isHome
-        ? relevantFixture.team_h_difficulty
-        : relevantFixture.team_a_difficulty;
+      const opponents = activeFixtures.map((fix) => {
+        const isHome = fix.team_h === player.team;
+        const opponentId = isHome ? fix.team_a : fix.team_h;
+        const opponentTeam = teams.find((t) => t.id === opponentId);
+        const shortName = opponentTeam ? opponentTeam.short_name : "???";
 
-      if (opponentTeam) {
-        opponentDisplay = isHome
-          ? opponentTeam.short_name.toUpperCase()
-          : opponentTeam.short_name.toLowerCase();
-      }
+        // Return object for calculating combined difficulty later
+        return {
+          display: isHome ? shortName.toUpperCase() : shortName.toLowerCase(),
+          diff: isHome ? fix.team_h_difficulty : fix.team_a_difficulty,
+        };
+      });
+
+      // A. Display Text
+      // Join multiple opponents with a comma
+      opponentDisplay = opponents.map((o) => o.display).join(", ");
+
+      // B. Difficulty
+      // If DGW, we take the average difficulty rounded up? Or max?
+      // Usually showing the 'hardest' color warns the user better,
+      // OR we can Average. Let's Average for a balanced heatmap look.
+      const totalDiff = opponents.reduce((sum, o) => sum + o.diff, 0);
+      difficulty = Math.round(totalDiff / opponents.length);
+    } else if (gameweekId) {
+      // Explicit blank GW
+      opponentDisplay = "BLK";
+      difficulty = 0;
     }
   }
 
   // --- FDR COLOR HELPER ---
   const getFDRClass = (diff) => {
     if (!diff || diff === 0)
-      return "bg-gray-100 dark:bg-gray-700 text-gray-400";
+      return "bg-gray-100 dark:bg-gray-700 text-gray-400"; // Blank/Empty
     if (diff <= 2) return "bg-[#01fc7a] text-black border-green-600";
     if (diff === 3) return "bg-gray-200 text-black border-gray-300";
     if (diff === 4) return "bg-[#ff1751] text-white border-red-600";
@@ -97,19 +113,31 @@ export default function PlayerShirt({
   let bottomBoxContent = opponentDisplay;
   let bottomBoxClass = getFDRClass(difficulty);
 
-  // Only show live points if data exists AND the player has played (minutes > 0)
-  // OR has points on the bench (rare but possible with cards on bench)
-  // OR the match is confirmed "started" (though we don't have match status here, minutes is a safe proxy)
-  if (liveData && (liveData.minutes > 0 || liveData.total_points !== 0)) {
-    let points = liveData.total_points;
-    if (isCaptain) points = points * 2;
-    // (Add Triple Captain check here later if needed)
+  // Font sizing adjustment for DGW text
+  // If the text is long (e.g. "ARS, CHE"), make font smaller
+  const isDGW = bottomBoxContent.includes(",");
+  const fontSizeClass = isDGW
+    ? "text-[8px] sm:text-[9px]"
+    : "text-[9px] sm:text-[10px]";
 
-    bottomBoxContent = `${points} Pts`;
+  if (liveData) {
+    const hasPlayed = liveData.minutes > 0 || liveData.total_points !== 0;
 
-    // Use a distinct style for live points to differentiate from FDR
-    bottomBoxClass =
-      "bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 font-bold border-2";
+    // In DGW, we show points if ANY match has started (minutes > 0)
+    if (hasPlayed || isMatchFinished) {
+      let points = liveData.total_points;
+      if (isCaptain) points = points * 2;
+
+      bottomBoxContent = `${points} Pts`;
+
+      if (points === 0 && isMatchFinished && !hasPlayed) {
+        bottomBoxClass =
+          "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300 border-gray-300 dark:border-gray-500";
+      } else {
+        bottomBoxClass =
+          "bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 font-bold border-2";
+      }
+    }
   }
 
   // --- DYNAMIC CARD STYLE ---
@@ -126,14 +154,12 @@ export default function PlayerShirt({
         className={`relative backdrop-filter backdrop-blur rounded-md pt-1.5 w-full flex flex-col items-center transition-all duration-300 ${cardStyle}`}
       >
         <div className="absolute top-1 right-1 flex flex-col gap-0.5">
-          {/* Captaincy Badge */}
           {(isCaptain || isViceCaptain) && (
             <div className="bg-black text-white text-[9px] sm:text-[10px] font-black w-4 h-4 sm:w-4 sm:h-4 flex items-center justify-center rounded-full border border-white z-30 shadow-sm">
               {isCaptain ? "C" : "V"}
             </div>
           )}
 
-          {/* Injury Warning Badge */}
           {isInjured && (
             <div
               className={`${badgeBg} ${badgeText} w-4 h-4 sm:w-4 sm:h-4 flex items-center justify-center rounded-full border border-white z-30 shadow-sm`}
@@ -143,7 +169,6 @@ export default function PlayerShirt({
           )}
         </div>
 
-        {/* Shirt Image */}
         <div className="-mb-4 sm:-mb-5 z-10">
           <img
             src={shirtUrl}
@@ -152,7 +177,6 @@ export default function PlayerShirt({
           />
         </div>
 
-        {/* Player Info Box */}
         <div
           className={`relative text-center rounded-t-sm px-1 py-0.5 shadow-md z-20 border w-[95%] sm:w-full transition-colors duration-300 ${statusBg} ${
             inPitch
@@ -167,7 +191,6 @@ export default function PlayerShirt({
           </div>
         </div>
 
-        {/* --- Fixture / Live Points Box --- */}
         <div
           className={`relative text-center rounded-b-sm px-1 py-0.5 shadow-md z-20 w-[95%] sm:w-full transition-colors duration-300 ${bottomBoxClass} ${
             inPitch
@@ -175,7 +198,8 @@ export default function PlayerShirt({
               : "min-w-[60px] sm:min-w-[70px]"
           }`}
         >
-          <div className="text-[9px] sm:text-[10px] leading-none mt-0.5 font-bold">
+          {/* Apply dynamic font size class here */}
+          <div className={`${fontSizeClass} leading-none mt-0.5 font-bold`}>
             {bottomBoxContent}
           </div>
         </div>

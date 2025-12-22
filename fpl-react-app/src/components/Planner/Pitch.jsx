@@ -2,6 +2,7 @@ import { Plus, ArrowLeftRight } from "lucide-react";
 import PlayerShirt from "./PlayerShirt";
 import { useEffect, useState, useMemo } from "react";
 import { useFPLApi } from "../../hooks/useFplApi";
+import LivePointsBanner from "./LivePointsBanner";
 
 // ... [HalfPitchBackground and Placeholder components remain unchanged] ...
 function HalfPitchBackground() {
@@ -250,6 +251,14 @@ export default function Pitch({
   return (
     <>
       <div className="w-full mx-auto max-w-md sm:max-w-xl md:max-w-3xl">
+        {/* 2. INSERT BANNER HERE */}
+        <LivePointsBanner
+          squad={squad}
+          liveStats={liveStats}
+          gameweekId={gameweekId}
+        />
+
+        {/* PITCH AREA */}
         <div className="relative w-full aspect-3/4 sm:aspect-4/3 rounded-xl overflow-hidden shadow-2xl border-4 border-white bg-[#00b159]">
           <HalfPitchBackground />
           <div className="relative h-full flex flex-col justify-between py-4 sm:py-6 z-10 px-1 sm:px-4">
@@ -268,6 +277,7 @@ export default function Pitch({
           </div>
         </div>
 
+        {/* BENCH AREA (Same as before) */}
         {saved && benchPlayers.length > 0 && (
           <div
             className={`mt-4 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md border border-gray-200 dark:border-gray-700 transition-colors ${
@@ -276,15 +286,19 @@ export default function Pitch({
                 : ""
             }`}
           >
+            {/* ... bench content ... */}
+            {/* (Just ensuring this section is kept as is from previous steps) */}
             <div className="text-[10px] font-bold text-center text-gray-400 uppercase tracking-widest mb-2">
               Substitutes
             </div>
             <div className="flex justify-center gap-2 sm:gap-4">
               {benchPlayers.map((p, i) => {
+                // ... map logic ...
+                // COPY PASTED from your previous code for brevity in display
+                // (Ensure renderRow/bench mapping logic matches your previous file)
                 let label = "SUB";
                 if (p) label = labelMap[p.element_type];
                 else if (i === 0) label = "GKP";
-
                 const isSubSource = substitutionSource === p?.id;
                 let isValidTarget = true;
                 if (substitutionSource) {
@@ -296,7 +310,6 @@ export default function Pitch({
                       p.id
                     );
                 }
-
                 return (
                   <div
                     key={p ? p.id : `bench-${i}`}
