@@ -1,6 +1,3 @@
-Here is the complete **README.md** file in markdown format.
-
-````markdown
 # ⚽ FPL Squad Craft
 
 A modern, feature-rich Fantasy Premier League planning tool built with React, Vite, TailwindCSS, and the official FPL API.
@@ -54,6 +51,7 @@ A modern, feature-rich Fantasy Premier League planning tool built with React, Vi
 git clone [https://github.com/ofentsej/fpl-squad-craft.git](https://github.com/ofentsej/fpl-squad-craft.git)
 cd fpl-squad-craft
 ```
+
 ````
 
 2. **Install dependencies**
@@ -169,3 +167,4 @@ Built with ❤️ by FPL enthusiasts, for FPL enthusiasts.
 ```
 
 ```
+````
