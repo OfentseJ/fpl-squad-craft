@@ -8,7 +8,7 @@ import Trends from "./pages/Trends";
 import Live from "./pages/Live";
 import Planner from "./pages/Planner";
 import { DarkModeContext } from "./context/DarkModeContext";
-import { useFplApi } from "./hooks/useFplApi";
+import { useFPLApi } from "./hooks/useFPLApi";
 
 export default function App() {
   const [dark, setDark] = useState(false);
@@ -16,7 +16,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const { getBootstrap } = useFplApi();
+  const { getBootstrap } = useFPLApi();
   useEffect(() => {
     if (dark) {
       document.documentElement.classList.add("dark");

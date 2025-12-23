@@ -16,7 +16,7 @@ import PlayerFilters from "../components/Planner/PlayerFilters";
 import PlayerDetailModal from "../components/Planner/PlayerDetailModal";
 import ImportTeamModal from "../components/Planner/ImportTeamModal";
 import Footer from "../components/Footer";
-import { useFPLApi } from "../hooks/useFplApi";
+import { useFPLApi } from "../hooks/useFPLApi";
 import { SquadListView } from "../components/Planner/SquadListView";
 import { getCurrentGameweek } from "../utils/FplUtils";
 import GameweekNavigator from "../components/Planner/GameweekNavigator";
@@ -718,7 +718,7 @@ export default function Planner({ data }) {
                 onPositionFilterChange={setPositionFilter}
               />
 
-              <div className="max-h-[600px] overflow-y-auto p-2 space-y-1 bg-gray-50/50 dark:bg-gray-900/20">
+              <div className="max-h-150 overflow-y-auto p-2 space-y-1 bg-gray-50/50 dark:bg-gray-900/20">
                 {filteredPlayers.map((p) => {
                   // ... (Existing mapping logic for filteredPlayers) ...
                   const posFull = isPositionFull(p.element_type);

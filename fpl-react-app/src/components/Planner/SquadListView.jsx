@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Info, XCircle, ArrowLeftRight } from "lucide-react";
-import { useFPLApi } from "../../hooks/useFplApi";
+import { useFPLApi } from "../../hooks/useFPLApi";
 
 export const SquadListView = ({
   squad,

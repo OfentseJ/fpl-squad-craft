@@ -3,7 +3,7 @@ import { getCurrentGameweek } from "../utils/FplUtils";
 import LoadingSkeleton from "../components/LoadingSkeleton";
 import ErrorDisplay from "../components/ErrorDisplay";
 import Footer from "../components/Footer";
-import { useFPLApi } from "../hooks/useFplApi";
+import { useFPLApi } from "../hooks/useFPLApi";
 
 export default function Live({ data }) {
   const [liveData, setLiveData] = useState(null);

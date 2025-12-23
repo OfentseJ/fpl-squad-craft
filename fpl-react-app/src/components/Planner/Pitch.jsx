@@ -1,7 +1,7 @@
 import { Plus, ArrowLeftRight } from "lucide-react";
 import PlayerShirt from "./PlayerShirt";
 import { useEffect, useState, useMemo } from "react";
-import { useFPLApi } from "../../hooks/useFplApi";
+import { useFPLApi } from "../../hooks/useFPLApi";
 import LivePointsBanner from "./LivePointsBanner";
 
 // ... [HalfPitchBackground and Placeholder components remain unchanged] ...

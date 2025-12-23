@@ -1,6 +1,6 @@
 import { useRef, useCallback } from "react";
 
-export function useFplApi() {
+export function useFPLApi() {
   const cache = useRef({});
 
   const isProduction = import.meta.env.PROD;

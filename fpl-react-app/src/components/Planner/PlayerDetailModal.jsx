@@ -9,7 +9,7 @@ import {
   Shield,
   Zap,
 } from "lucide-react";
-import { useFPLApi } from "../../hooks/useFplApi";
+import { useFPLApi } from "../../hooks/useFPLApi";
 
 export default function PlayerDetailModal({
   player,

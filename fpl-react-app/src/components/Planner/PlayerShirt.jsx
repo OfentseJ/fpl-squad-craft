@@ -1,4 +1,4 @@
-import { useFPLApi } from "../../hooks/useFplApi";
+import { useFPLApi } from "../../hooks/useFPLApi";
 import { AlertTriangle } from "lucide-react";
 
 export default function PlayerShirt({
