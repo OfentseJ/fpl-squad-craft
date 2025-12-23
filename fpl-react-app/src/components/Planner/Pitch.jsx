@@ -65,7 +65,7 @@ function Placeholder({ position, onClick, disabled }) {
         />
       </div>
       <div
-        className={`mt-1 px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm min-w-[50px] text-center ${
+        className={`mt-1 px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm min-w-12.5 text-center ${
           disabled
             ? "bg-gray-800/80 text-gray-400"
             : "bg-green-900/80 text-white"

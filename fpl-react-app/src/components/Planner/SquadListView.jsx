@@ -284,7 +284,7 @@ export const SquadListView = ({
   return (
     <div className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 font-sans">
       <div className="overflow-x-auto">
-        <div className="min-w-[600px]">
+        <div className="min-w-150">
           {/* Header */}
           <div
             className={`${gridLayoutClass} bg-gray-100 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider py-3`}

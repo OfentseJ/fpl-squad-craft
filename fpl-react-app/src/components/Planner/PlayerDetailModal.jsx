@@ -105,7 +105,7 @@ export default function PlayerDetailModal({
       />
 
       {/* Modal Slide-over */}
-      <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[400px] bg-white dark:bg-gray-900 shadow-2xl z-100 flex flex-col animate-slideInRight border-l border-gray-200 dark:border-gray-800">
+      <div className="fixed right-0 top-0 bottom-0 w-full sm:w-100 bg-white dark:bg-gray-900 shadow-2xl z-100 flex flex-col animate-slideInRight border-l border-gray-200 dark:border-gray-800">
         {/* --- HEADER SECTION --- */}
         <div className="relative h-56 bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden shrink-0">
           {/* Abstract background pattern */}

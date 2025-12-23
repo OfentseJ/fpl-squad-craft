@@ -180,8 +180,8 @@ export default function PlayerShirt({
         <div
           className={`relative text-center rounded-t-sm px-1 py-0.5 shadow-md z-20 border w-[95%] sm:w-full transition-colors duration-300 ${statusBg} ${
             inPitch
-              ? "min-w-[60px] sm:min-w-[70px] md:min-w-20"
-              : "min-w-[60px] sm:min-w-[70px]"
+              ? "min-w-15 sm:min-w-17.5 md:min-w-20"
+              : "min-w-15 sm:min-w-17.5"
           }`}
         >
           <div
@@ -194,8 +194,8 @@ export default function PlayerShirt({
         <div
           className={`relative text-center rounded-b-sm px-1 py-0.5 shadow-md z-20 w-[95%] sm:w-full transition-colors duration-300 ${bottomBoxClass} ${
             inPitch
-              ? "min-w-[60px] sm:min-w-[70px] md:min-w-20"
-              : "min-w-[60px] sm:min-w-[70px]"
+              ? "min-w-15 sm:min-w-17.5 md:min-w-20"
+              : "min-w-15 sm:min-w-17.5"
           }`}
         >
           {/* Apply dynamic font size class here */}
