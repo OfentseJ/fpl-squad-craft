@@ -10,6 +10,7 @@ import {
   Lock,
   List,
   LayoutGrid,
+  Edit2,
 } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
@@ -18,11 +19,12 @@ import ImportTeamModal from "../components/Planner/ImportTeamModal";
 import Footer from "../components/Footer";
 import { useFPLApi } from "../hooks/useFPLApi";
 import { SquadListView } from "../components/Planner/SquadListView";
-import { getCurrentGameweek } from "../utils/FplUtils";
+import { calculateFreeTransfers, getCurrentGameweek } from "../utils/FplUtils";
 import GameweekNavigator from "../components/Planner/GameweekNavigator";
 import { usePlannerStorage } from "../hooks/usePlannerStorage";
 import TeamInfoBanner from "../components/Planner/TeamInfoBanner";
 import LoadingSkeleton from "../components/LoadingSkeleton";
+import BankEditModal from "../components/Planner/BankEditModal";
 
 export default function Planner({ data }) {
   // --- HOOKS ---
@@ -38,8 +40,13 @@ export default function Planner({ data }) {
     isStorageLoaded,
   } = usePlannerStorage();
 
-  const { getShirtUrl, getFixtures, importUserTeam, getUserTeamInfo } =
-    useFPLApi();
+  const {
+    getShirtUrl,
+    getFixtures,
+    importUserTeam,
+    getUserTeamInfo,
+    getEntryHistory,
+  } = useFPLApi();
 
   // --- LOCAL STATE ---
   const [squad, setSquad] = useState([]);
@@ -62,6 +69,21 @@ export default function Planner({ data }) {
     return gwEvent ? gwEvent.id : 1;
   });
   const [viewingGw, setViewingGw] = useState(currentActualGw + 1);
+
+  const [bank, setBank] = useState(() => {
+    const saved = localStorage.getItem("fpl_planner_bank");
+    return saved !== null ? parseInt(saved, 10) : 1000;
+  });
+  const [freeTransfers, setFreeTransfers] = useState(() => {
+    const saved = localStorage.getItem("fpl_planner_free_transfers");
+    return saved !== null ? parseInt(saved, 10) : 1;
+  });
+  const [transfersMadeCount, setTransfersMadeCount] = useState(() => {
+    const saved = localStorage.getItem("fpl_planner_transfers_made");
+    return saved !== null ? parseInt(saved, 10) : 0;
+  });
+
+  const [isBankModalOpen, setIsBankModalOpen] = useState(false);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -142,7 +164,14 @@ export default function Planner({ data }) {
     }
   }, [viewingGw, currentActualGw, isSaved, baseSquad]);
 
-  // --- HELPER: Update State Wrapper ---
+  // --- STORAGE SYNC EFFECT ---
+  useEffect(() => {
+    localStorage.setItem("fpl_planner_bank", bank);
+    localStorage.setItem("fpl_planner_free_transfers", freeTransfers);
+    localStorage.setItem("fpl_planner_transfers_made", transfersMadeCount);
+  }, [bank, freeTransfers, transfersMadeCount]);
+
+  // --- Update State Wrapper ---
   const updateSquadState = (newSquad) => {
     setSquad(newSquad);
     if (viewingGw === currentActualGw) {
@@ -155,7 +184,7 @@ export default function Planner({ data }) {
     }
   };
 
-  // --- NEW: RESTRICTION LOGIC ---
+  // --- RESTRICTION LOGIC ---
   const ensurePlanningMode = () => {
     if (baseSquad.length === 0) return true; // Manual mode exception
 
@@ -196,10 +225,17 @@ export default function Planner({ data }) {
     if (isPositionFull(player.element_type)) return;
     if (isTeamFull(player.team)) return;
 
+    if (bank - player.now_cost < 0) {
+      alert("Not enough money in the bank!");
+      return;
+    }
+
     const newSquad = [
       ...squad,
       { ...player, starting: true, teams: data.teams },
     ];
+
+    setBank((prev) => prev - player.now_cost);
     updateSquadState(newSquad);
   };
 
@@ -207,6 +243,15 @@ export default function Planner({ data }) {
     if (!ensurePlanningMode()) return;
     const newSquad = squad.filter((p) => p.id !== playerId);
     updateSquadState(newSquad);
+  };
+
+  const formatMetric = (value, metric) => {
+    if (metric === "now_cost") return `£${(value / 10).toFixed(1)}m`;
+    if (metric === "selected_by_percent") return `${value}%`;
+    if (metric === "ict_index") return value;
+    if (metric === "minutes") return `${value} mins`;
+
+    return `${value} pts`;
   };
 
   const handlePlaceholderClick = (positionId) => {
@@ -319,6 +364,31 @@ export default function Planner({ data }) {
       return;
     }
 
+    const remainingTransfers = freeTransfers - transfersMadeCount;
+    if (remainingTransfers <= 0) {
+      const confirmHit = window.confirm(
+        "Yon have no free transfers remaining.\n\nMaking this transfer will deduct -4 points from your total score.\n\nDo you want to proceed?"
+      );
+      if (!confirmHit) return;
+    }
+
+    const sellingPrice =
+      oldPlayer.selling_price !== undefined
+        ? oldPlayer.selling_price
+        : oldPlayer.now_cost;
+    const buyPrice = newPlayer.now_cost;
+    const priceDiff = sellingPrice - buyPrice;
+    const newBank = bank + priceDiff;
+
+    if (newBank < 0) {
+      alert(
+        `Insufficient funds! You need £${Math.abs(newBank / 10).toFixed(
+          1
+        )}m more.`
+      );
+      return;
+    }
+
     const performSwap = (list) => {
       const newList = [...list];
       const idx = newList.findIndex((p) => p.id === oldPlayer.id);
@@ -335,7 +405,10 @@ export default function Planner({ data }) {
     };
 
     const updatedVisualSquad = performSwap(squad);
+
     setSquad(updatedVisualSquad);
+    setBank(newBank);
+    setTransfersMadeCount((prev) => prev + 1);
     setTransferSource(null);
 
     setPlannedSquads((prev) => {
@@ -407,6 +480,11 @@ export default function Planner({ data }) {
     if (window.confirm("Are you sure you want to clear your team?")) {
       setSquad([]);
       setIsSaved(false);
+
+      setBank(1000);
+      setFreeTransfers(1);
+      setTransfersMadeCount(0);
+
       setSubstitutionSource(null);
       setTransferSource(null);
       clearStorage();
@@ -417,9 +495,10 @@ export default function Planner({ data }) {
   const handleImportTeam = async (teamId) => {
     try {
       const currentEvent = data.events.find((e) => e.is_current)?.id || 1;
-      const [picks, info] = await Promise.all([
+      const [picks, info, history] = await Promise.all([
         importUserTeam(teamId, currentEvent),
         getUserTeamInfo(teamId),
+        getEntryHistory(teamId),
       ]);
 
       if (!picks || picks.length === 0) throw new Error("No players found.");
@@ -441,8 +520,15 @@ export default function Planner({ data }) {
 
       if (importedSquad.length < 15) throw new Error("Incomplete squad.");
 
+      const estimatedTransfers = calculateFreeTransfers(history);
+
       setSquad(importedSquad);
       setTeamInfo(info);
+
+      setBank(info.last_deadline_bank || 0);
+      setTransfersMadeCount(0);
+      setFreeTransfers(estimatedTransfers);
+
       setIsSaved(true);
       setView("pitch");
       setViewingGw(currentActualGw);
@@ -494,11 +580,8 @@ export default function Planner({ data }) {
     setSelectedPlayer(null);
   };
 
-  const getMetricDisplay = (player, metric) => {
-    if (metric === "now_cost") return `£${(player.now_cost / 10).toFixed(1)}m`;
-    if (metric === "selected_by_percent")
-      return `${player.selected_by_percent}%`;
-    return `${player[metric]} pts`;
+  const handleUpdateBank = (newValue) => {
+    setBank(newValue);
   };
 
   const metricLabels = {
@@ -531,6 +614,7 @@ export default function Planner({ data }) {
               viewingGw={viewingGw}
               currentActualGw={currentActualGw}
               setViewingGw={setViewingGw}
+              setFreeTransfers={setFreeTransfers}
             />
           </div>
         )}
@@ -538,37 +622,125 @@ export default function Planner({ data }) {
         {/* --- 3. Summary Dashboard --- */}
         {/* Removed 'sticky' class here */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            {/* Left: Squad Stats */}
-            <div className="flex items-center gap-6 w-full sm:w-auto justify-center sm:justify-start">
-              <div className="text-center sm:text-left">
-                <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
-                  Squad Size
+          <div className="flex flex-col xl:flex-row justify-between items-center gap-4">
+            {/* Left: Squad Stats (Scrollable Container) */}
+            {/* w-full ensures it takes full width on mobile to allow scrolling */}
+            {/* overflow-x-auto enables the horizontal scroll */}
+            <div className="w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0">
+              <div className="flex items-center gap-6 min-w-max px-2 mx-auto xl:mx-0">
+                {/* 1. Squad Size */}
+                <div className="text-center sm:text-left">
+                  <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
+                    Squad Size
+                  </div>
+                  <div
+                    className={`text-2xl font-black ${
+                      squad.length === 15
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-gray-800 dark:text-white"
+                    }`}
+                  >
+                    {squad.length}
+                    <span className="text-lg text-gray-400 font-medium">
+                      /15
+                    </span>
+                  </div>
                 </div>
-                <div
-                  className={`text-2xl font-black ${
-                    squad.length === 15
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-gray-800 dark:text-white"
-                  }`}
-                >
-                  {squad.length}
-                  <span className="text-lg text-gray-400 font-medium">/15</span>
+
+                <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
+
+                {/* 2. Team Value */}
+                <div className="text-center sm:text-left">
+                  <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
+                    Team Value
+                  </div>
+                  <div className="text-2xl font-black text-green-600 dark:text-green-400">
+                    £{totalCost.toFixed(1)}m
+                  </div>
                 </div>
-              </div>
-              <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
-              <div className="text-center sm:text-left">
-                <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
-                  Bank Value
+
+                <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
+
+                {/* 3. Money In Bank */}
+                <div className="text-center sm:text-left">
+                  <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
+                    In Bank
+                  </div>
+                  <button
+                    onClick={() => setIsBankModalOpen(true)}
+                    className="group flex items-center gap-2 transition-opacity hover:opacity-80"
+                    title="Click to edit budget"
+                  >
+                    <div
+                      className={`text-2xl font-black ${
+                        bank < 0
+                          ? "text-red-500"
+                          : "text-green-600 dark:text-green-400"
+                      }`}
+                    >
+                      £{(bank / 10).toFixed(1)}m
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-gray-100 dark:bg-gray-700 p-1 rounded text-gray-500">
+                      <Edit2 size={12} />
+                    </div>
+                  </button>
                 </div>
-                <div className="text-2xl font-black text-green-600 dark:text-green-400">
-                  £{totalCost.toFixed(1)}m
+
+                <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
+
+                {/* 4. Transfers */}
+                <div className="text-center sm:text-left">
+                  <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
+                    Transfers
+                  </div>
+                  {/* Check if we are in planning mode (viewing future GW) */}
+                  {viewingGw !== currentActualGw ? (
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`text-2xl font-black ${
+                          freeTransfers - transfersMadeCount < 0
+                            ? "text-red-500"
+                            : "text-gray-800 dark:text-white"
+                        }`}
+                      >
+                        {Math.max(0, freeTransfers - transfersMadeCount)}
+                      </div>
+
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          onClick={() =>
+                            setFreeTransfers((prev) => Math.min(5, prev + 1))
+                          }
+                          className="bg-gray-200 dark:bg-gray-700 hover:bg-green-500 hover:text-white text-[10px] w-5 h-4 flex items-center justify-center rounded leading-none transition-colors"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          onClick={() =>
+                            setFreeTransfers((prev) => Math.max(1, prev - 1))
+                          }
+                          className="bg-gray-200 dark:bg-gray-700 hover:bg-red-500 hover:text-white text-[10px] w-5 h-4 flex items-center justify-center rounded leading-none transition-colors"
+                        >
+                          ▼
+                        </button>
+                      </div>
+
+                      {transfersMadeCount > freeTransfers && (
+                        <div className="text-xs text-red-500 font-bold whitespace-nowrap">
+                          -{(transfersMadeCount - freeTransfers) * 4} pts
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Show simple state if viewing current active gameweek
+                    <div className="text-sm text-gray-400 italic">Locked</div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Right: Actions */}
-            <div className="flex flex-wrap justify-center gap-2">
+            {/* Right: Actions (Stacks below on mobile) */}
+            <div className="flex flex-wrap justify-center gap-2 w-full xl:w-auto">
               {/* View Toggle */}
               <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded-lg flex items-center">
                 <button
@@ -617,7 +789,7 @@ export default function Planner({ data }) {
                       : "bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
                   }`}
                 >
-                  <Save size={18} /> Save Team
+                  <Save size={18} /> Save
                 </button>
               )}
             </div>
@@ -628,7 +800,7 @@ export default function Planner({ data }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 relative items-start">
           {/* LEFT COL: PITCH (Span 8) */}
           <div
-            className={`lg:col-span-8 order-1 relative transition-all duration-300 ${
+            className={`lg:col-span-7 order-1 relative transition-all duration-300 ${
               transferSource
                 ? "opacity-40 pointer-events-none grayscale blur-sm"
                 : "opacity-100"
@@ -683,12 +855,10 @@ export default function Planner({ data }) {
               </div>
             )}
           </div>
-
           {/* RIGHT COL: PLAYER SELECTOR (Span 4) */}
-          {/* Note: I added sticky here too, but adjusted top to fit below navigator */}
           <div
             id="player-list-section"
-            className={`lg:col-span-4 order-2 transition-all duration-300 ${
+            className={`lg:col-span-5 order-2 transition-all duration-300 ${
               substitutionSource
                 ? "opacity-40 grayscale pointer-events-none"
                 : "opacity-100"
@@ -803,12 +973,32 @@ export default function Planner({ data }) {
                       </div>
 
                       <div className="flex items-center gap-3 pl-2">
-                        <div className="text-right">
-                          <div className="font-bold text-sm text-green-600 dark:text-green-400">
-                            {getMetricDisplay(p, activeSortMetric)}
+                        <div className="text-right min-w-16">
+                          <div className="font-bold text-sm text-gray-900 dark:text-white flex items-center justify-end">
+                            <span>£{(p.now_cost / 10).toFixed(1)}m</span>
+
+                            {activeSortMetric !== "now_cost" && (
+                              <>
+                                <span className="mx-1.5 text-gray-300 dark:text-gray-600 font-light text-lg leading-none">
+                                  |
+                                </span>
+
+                                <span className="text-green-600 dark:text-green-400">
+                                  {p[activeSortMetric]}
+                                  {/* Add % only for selection percentage */}
+                                  {activeSortMetric === "selected_by_percent" &&
+                                    "%"}
+                                </span>
+                              </>
+                            )}
                           </div>
-                          <div className="text-[9px] uppercase text-gray-400 font-bold">
-                            {metricLabels[activeSortMetric] || "Pts"}
+
+                          {/* Bottom Row: Label (e.g. "Price" or "Form") */}
+                          <div className="text-[9px] uppercase text-gray-400 font-bold truncate">
+                            {activeSortMetric === "now_cost"
+                              ? "Price"
+                              : metricLabels[activeSortMetric] ||
+                                activeSortMetric.replace("_", " ")}
                           </div>
                         </div>
                         <div
@@ -880,6 +1070,12 @@ export default function Planner({ data }) {
           onClose={() => setIsImportModalOpen(false)}
           onImport={handleImportTeam}
           data={data}
+        />
+        <BankEditModal
+          isOpen={isBankModalOpen}
+          onClose={() => setIsBankModalOpen(false)}
+          currentBank={bank}
+          onSave={handleUpdateBank}
         />
       </div>
       <Footer />
