@@ -680,7 +680,7 @@ export default function Planner({ data }) {
                     >
                       £{(bank / 10).toFixed(1)}m
                     </div>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-gray-100 dark:bg-gray-700 p-1 rounded text-gray-500">
+                    <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded text-gray-500">
                       <Edit2 size={12} />
                     </div>
                   </button>
