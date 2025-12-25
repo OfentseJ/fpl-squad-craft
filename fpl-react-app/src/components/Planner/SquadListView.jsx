@@ -44,19 +44,17 @@ export const SquadListView = ({
   // --- FDR COLOR HELPER ---
   const getFDRClass = (diff) => {
     if (!diff || diff === 0)
-      return "bg-gray-100 dark:bg-gray-700 text-gray-400"; // Default/Blank
-    if (diff <= 2) return "bg-[#01fc7a] text-black border border-green-600"; // Green (Easy)
-    if (diff === 3) return "bg-gray-200 text-black border border-gray-300"; // Grey (Medium)
-    if (diff === 4) return "bg-[#ff1751] text-white border border-red-600"; // Red (Hard)
-    return "bg-[#80072d] text-white border border-red-900"; // Dark Red (Very Hard)
+      return "bg-gray-100 dark:bg-gray-700 text-gray-400";
+    if (diff <= 2) return "bg-[#01fc7a] text-black border border-green-600";
+    if (diff === 3) return "bg-gray-200 text-black border border-gray-300";
+    if (diff === 4) return "bg-[#ff1751] text-white border border-red-600";
+    return "bg-[#80072d] text-white border border-red-900";
   };
 
   // 2. Create a Map of TeamID -> Fixture Object { text, cssClass }
   const fixtureMap = useMemo(() => {
     if (!fixtures.length || !data?.teams) return {};
-
     const map = {};
-
     const getShortName = (id) =>
       data.teams.find((t) => t.id === id)?.short_name || "UNK";
 
@@ -66,7 +64,6 @@ export const SquadListView = ({
       );
 
       let relevantFixture = null;
-
       if (gameweekId) {
         relevantFixture = teamFixtures.find(
           (f) => f.event === Number(gameweekId)
@@ -83,13 +80,10 @@ export const SquadListView = ({
         const opponentId = isHome
           ? relevantFixture.team_a
           : relevantFixture.team_h;
-
         const opponentName = getShortName(opponentId);
-
         difficulty = isHome
           ? relevantFixture.team_h_difficulty
           : relevantFixture.team_a_difficulty;
-
         display = isHome ? `${opponentName} (H)` : `${opponentName} (A)`;
       }
 
@@ -98,14 +92,16 @@ export const SquadListView = ({
         className: getFDRClass(difficulty),
       };
     });
-
     return map;
   }, [fixtures, data, gameweekId]);
 
   // --- Definitions ---
+  // NEW: Added CP (Current), PP (Purchase), SP (Selling)
   const statColumns = [
+    { label: "CP", key: "now_cost", title: "Current Price" },
+    { label: "PP", key: "purchase_price", title: "Purchase Price" },
+    { label: "SP", key: "selling_price", title: "Selling Price" },
     { label: "Form", key: "form", title: "Current Form" },
-    { label: "GW", key: "event_points", title: "Last Gameweek Points" },
     { label: "Pts", key: "total_points", title: "Total Points" },
     { label: "Fix", key: "next_fixture", title: "Fixture" },
   ];
@@ -129,21 +125,22 @@ export const SquadListView = ({
     return map[typeId] || "";
   };
 
+  // --- NEW GRID LAYOUT ---
+  // Adjusted columns to fit 3 price columns + stats + fixture
   const gridLayoutClass =
-    "grid grid-cols-[minmax(250px,_1fr)_4rem_4rem_4rem_6rem] gap-0";
+    "grid grid-cols-[minmax(200px,_1fr)_3.5rem_3.5rem_3.5rem_3.5rem_3.5rem_6rem] gap-0";
 
   const headerStyle =
     "px-4 py-2 bg-gray-50 dark:bg-gray-800/80 text-sm font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700 mt-0";
 
   // --- Row Component ---
-  // Added Prop: isStarterRow
   const PlayerRow = ({ p, isStarterRow }) => {
     const fixtureData = fixtureMap[p.team] || { label: "-", className: "" };
 
     // --- SUBSTITUTION LOGIC ---
     const isSubSource = substitutionSource === p.id;
     let isValidTarget = true;
-    let rowClassName = "hover:bg-green-50 dark:hover:bg-gray-700/40"; // Default
+    let rowClassName = "hover:bg-green-50 dark:hover:bg-gray-700/40";
 
     if (substitutionSource) {
       if (p.id === substitutionSource) {
@@ -151,13 +148,8 @@ export const SquadListView = ({
           "bg-yellow-100 dark:bg-yellow-900/30 border-l-4 border-l-yellow-400";
         isValidTarget = true;
       } else {
-        // 1. Check strict rules (Formation, etc.)
         const rulesValid = isSubstitutionValid(substitutionSource, p.id);
-
-        // 2. Check STARTER <-> STARTER blocking rule
-        // If Source is Starter AND Target is Starter -> Invalid
         const isStarterSwap = sourceIsStarter && isStarterRow;
-
         isValidTarget = rulesValid && !isStarterSwap;
 
         if (isValidTarget) {
@@ -170,6 +162,13 @@ export const SquadListView = ({
     }
 
     const showSwapIcon = substitutionSource && isValidTarget && !isSubSource;
+
+    // Helper to format currency
+    const formatPrice = (val) => (val ? `£${(val / 10).toFixed(1)}` : "-");
+
+    // Fallbacks for manual adds where purchase/selling price might not exist yet
+    const purchasePrice = p.purchase_price ?? p.now_cost;
+    const sellingPrice = p.selling_price ?? p.now_cost;
 
     return (
       <div
@@ -184,7 +183,6 @@ export const SquadListView = ({
       >
         {/* COL 1: Player Info + Badge */}
         <div className="pl-4 pr-4 flex items-center gap-3 h-full relative overflow-hidden">
-          {/* --- ICON TOGGLE --- */}
           {showSwapIcon ? (
             <div className="mr-1 z-10 text-green-600 dark:text-green-400 animate-pulse">
               <ArrowLeftRight
@@ -204,7 +202,6 @@ export const SquadListView = ({
             </button>
           )}
 
-          {/* --- SHIRT IMAGE --- */}
           <div className="w-9 h-9 shrink-0 relative">
             <img
               src={getShirtUrl(
@@ -219,7 +216,6 @@ export const SquadListView = ({
             )}
           </div>
 
-          {/* --- NAME & DETAILS --- */}
           <div className="flex flex-col min-w-0 mr-2">
             <span className="font-bold text-sm text-gray-800 dark:text-gray-100 truncate">
               {p.web_name}
@@ -233,7 +229,6 @@ export const SquadListView = ({
             </div>
           </div>
 
-          {/* --- BADGES --- */}
           <div className="ml-auto flex items-center gap-2">
             {(p.is_captain || p.is_vice_captain) && (
               <div className="bg-black text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border border-white shadow-sm z-20">
@@ -254,18 +249,34 @@ export const SquadListView = ({
           </div>
         </div>
 
-        {/* --- STATS --- */}
+        {/* --- STATS COLUMNS --- */}
+
+        {/* Current Price */}
+        <div className="flex items-center justify-center text-sm text-gray-700 dark:text-gray-300 h-full border-l border-gray-50 dark:border-gray-800">
+          {formatPrice(p.now_cost)}
+        </div>
+
+        {/* Purchase Price */}
+        <div className="flex items-center justify-center text-sm text-gray-500 dark:text-gray-400 h-full">
+          {formatPrice(purchasePrice)}
+        </div>
+
+        {/* Selling Price */}
+        <div className="flex items-center justify-center text-sm font-bold text-green-600 dark:text-green-400 h-full bg-green-50/50 dark:bg-green-900/10">
+          {formatPrice(sellingPrice)}
+        </div>
+
+        {/* Form */}
         <div className="flex items-center justify-center text-sm text-gray-700 dark:text-gray-300 h-full">
           {p.form}
         </div>
+
+        {/* Total Points */}
         <div className="flex items-center justify-center text-sm font-bold text-gray-900 dark:text-white h-full bg-gray-50 dark:bg-gray-800/50">
-          {p.event_points}
-        </div>
-        <div className="flex items-center justify-center text-sm text-gray-700 dark:text-gray-300 h-full">
           {p.total_points}
         </div>
 
-        {/* --- FIXTURE --- */}
+        {/* Fixture */}
         <div className="flex items-center justify-center h-full px-2">
           {loadingFixtures ? (
             <span className="animate-pulse text-gray-400">...</span>
@@ -284,7 +295,7 @@ export const SquadListView = ({
   return (
     <div className="w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 font-sans">
       <div className="overflow-x-auto">
-        <div className="min-w-150">
+        <div className="min-w-200">
           {/* Header */}
           <div
             className={`${gridLayoutClass} bg-gray-100 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider py-3`}

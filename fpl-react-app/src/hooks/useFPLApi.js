@@ -7,25 +7,28 @@ export function useFPLApi() {
 
   const CORS_PROXY = isProduction
     ? "/api/proxy?url="
-    : "https://api.allorigins.win/raw?url=";
+    : "https://corsproxy.io/?";
 
-  const fetchWithCache = useCallback(async (key, url) => {
-    if (cache.current[key]) return cache.current[key];
+  const fetchWithCache = useCallback(
+    async (key, url) => {
+      if (cache.current[key]) return cache.current[key];
 
-    try {
-      const response = await fetch(CORS_PROXY + encodeURIComponent(url));
-      if (!response.ok) throw new Error("API request failed");
+      try {
+        const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+        if (!response.ok) throw new Error("API request failed");
 
-      const data = await response.json();
+        const data = await response.json();
 
-      cache.current[key] = data;
+        cache.current[key] = data;
 
-      return data;
-    } catch (error) {
-      console.error("API Error:", error);
-      throw error;
-    }
-  }, []);
+        return data;
+      } catch (error) {
+        console.error("API Error:", error);
+        throw error;
+      }
+    },
+    [CORS_PROXY]
+  );
 
   const getBootstrap = useCallback(
     () =>
@@ -71,40 +74,68 @@ export function useFPLApi() {
     return `https://resources.premierleague.com/premierleague/badges/t${teamCode}.png`;
   }, []);
 
-  const importUserTeam = useCallback(async (teamId, gameweek) => {
-    try {
-      // We generally don't cache user imports as they might change active transfers
-      const url = `https://fantasy.premierleague.com/api/entry/${teamId}/event/${gameweek}/picks/`;
-      const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+  const importUserTeam = useCallback(
+    async (teamId, gameweek) => {
+      try {
+        // We generally don't cache user imports as they might change active transfers
+        const url = `https://fantasy.premierleague.com/api/entry/${teamId}/event/${gameweek}/picks/`;
+        const response = await fetch(CORS_PROXY + encodeURIComponent(url));
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch team data. Please check the Team ID.");
+        if (!response.ok) {
+          throw new Error(
+            "Failed to fetch team data. Please check the Team ID."
+          );
+        }
+
+        const data = await response.json();
+        return data.picks;
+      } catch (error) {
+        console.error("Import Team Error:", error);
+        throw error;
       }
+    },
+    [CORS_PROXY]
+  );
 
-      const data = await response.json();
-      return data.picks;
-    } catch (error) {
-      console.error("Import Team Error:", error);
-      throw error;
-    }
-  }, []);
+  const getUserTeamInfo = useCallback(
+    async (teamId) => {
+      try {
+        const url = `https://fantasy.premierleague.com/api/entry/${teamId}/`;
+        const response = await fetch(CORS_PROXY + encodeURIComponent(url));
 
-  const getUserTeamInfo = useCallback(async (teamId) => {
-    try {
-      const url = `https://fantasy.premierleague.com/api/entry/${teamId}/`;
-      const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+        if (!response.ok) {
+          throw new Error("Failed to fetch team info.");
+        }
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch team info.");
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error("Get Team Info Error:", error);
+        throw error;
       }
+    },
+    [CORS_PROXY]
+  );
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("Get Team Info Error:", error);
-      throw error;
-    }
-  }, []);
+  const getEntryHistory = useCallback(
+    async (teamId) => {
+      try {
+        const url = `https://fantasy.premierleague.com/api/entry/${teamId}/history/`;
+        const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch team history.");
+        }
+
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error("Get Team History Error:", error);
+        throw error;
+      }
+    },
+    [CORS_PROXY]
+  );
 
   return {
     getBootstrap,
@@ -115,5 +146,6 @@ export function useFPLApi() {
     getTeamBadgeUrl,
     importUserTeam,
     getUserTeamInfo,
+    getEntryHistory,
   };
 }

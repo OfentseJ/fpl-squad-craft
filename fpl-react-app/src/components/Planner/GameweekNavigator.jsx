@@ -4,6 +4,7 @@ export default function GameweekNavigator({
   viewingGw,
   currentActualGw,
   setViewingGw,
+  setFreeTransfers,
 }) {
   // Constraint: Max 3 weeks ahead
   const maxFutureGw = currentActualGw + 3;
@@ -11,12 +12,14 @@ export default function GameweekNavigator({
   const handlePrev = () => {
     if (viewingGw > currentActualGw) {
       setViewingGw(viewingGw - 1);
+      setFreeTransfers((prev) => prev - 1);
     }
   };
 
   const handleNext = () => {
     if (viewingGw < maxFutureGw) {
       setViewingGw(viewingGw + 1);
+      setFreeTransfers((prev) => prev + 1);
     }
   };
 
