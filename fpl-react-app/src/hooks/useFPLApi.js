@@ -57,7 +57,6 @@ export function useFPLApi() {
     [fetchWithCache]
   );
 
-  // These don't rely on fetch/cache, but good practice to memoize or keep outside component
   const getShirtUrl = useCallback((team, isGK) => {
     return `https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_${
       team?.code || 3
@@ -66,7 +65,7 @@ export function useFPLApi() {
 
   const getPlayerImageUrl = useCallback((playerCode) => {
     if (!playerCode) return null;
-    return `https://resources.premierleague.com/premierleague/photos/players/110x140/p${playerCode}.png`;
+    return `https://resources.premierleague.com/premierleague25/photos/players/110x140/${playerCode}.png`;
   }, []);
 
   const getTeamBadgeUrl = useCallback((teamCode) => {
@@ -77,7 +76,6 @@ export function useFPLApi() {
   const importUserTeam = useCallback(
     async (teamId, gameweek) => {
       try {
-        // We generally don't cache user imports as they might change active transfers
         const url = `https://fantasy.premierleague.com/api/entry/${teamId}/event/${gameweek}/picks/`;
         const response = await fetch(CORS_PROXY + encodeURIComponent(url));
 

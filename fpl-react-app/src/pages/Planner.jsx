@@ -19,7 +19,7 @@ import ImportTeamModal from "../components/Planner/ImportTeamModal";
 import Footer from "../components/Footer";
 import { useFPLApi } from "../hooks/useFPLApi";
 import { SquadListView } from "../components/Planner/SquadListView";
-import { calculateFreeTransfers, getCurrentGameweek } from "../utils/FplUtils";
+import { getCurrentGameweek } from "../utils/FplUtils";
 import GameweekNavigator from "../components/Planner/GameweekNavigator";
 import { usePlannerStorage } from "../hooks/usePlannerStorage";
 import TeamInfoBanner from "../components/Planner/TeamInfoBanner";
@@ -73,14 +73,6 @@ export default function Planner({ data }) {
   const [bank, setBank] = useState(() => {
     const saved = localStorage.getItem("fpl_planner_bank");
     return saved !== null ? parseInt(saved, 10) : 1000;
-  });
-  const [freeTransfers, setFreeTransfers] = useState(() => {
-    const saved = localStorage.getItem("fpl_planner_free_transfers");
-    return saved !== null ? parseInt(saved, 10) : 1;
-  });
-  const [transfersMadeCount, setTransfersMadeCount] = useState(() => {
-    const saved = localStorage.getItem("fpl_planner_transfers_made");
-    return saved !== null ? parseInt(saved, 10) : 0;
   });
 
   const [isBankModalOpen, setIsBankModalOpen] = useState(false);
@@ -167,9 +159,7 @@ export default function Planner({ data }) {
   // --- STORAGE SYNC EFFECT ---
   useEffect(() => {
     localStorage.setItem("fpl_planner_bank", bank);
-    localStorage.setItem("fpl_planner_free_transfers", freeTransfers);
-    localStorage.setItem("fpl_planner_transfers_made", transfersMadeCount);
-  }, [bank, freeTransfers, transfersMadeCount]);
+  }, [bank]);
 
   // --- Update State Wrapper ---
   const updateSquadState = (newSquad) => {
@@ -243,15 +233,6 @@ export default function Planner({ data }) {
     if (!ensurePlanningMode()) return;
     const newSquad = squad.filter((p) => p.id !== playerId);
     updateSquadState(newSquad);
-  };
-
-  const formatMetric = (value, metric) => {
-    if (metric === "now_cost") return `£${(value / 10).toFixed(1)}m`;
-    if (metric === "selected_by_percent") return `${value}%`;
-    if (metric === "ict_index") return value;
-    if (metric === "minutes") return `${value} mins`;
-
-    return `${value} pts`;
   };
 
   const handlePlaceholderClick = (positionId) => {
@@ -364,14 +345,6 @@ export default function Planner({ data }) {
       return;
     }
 
-    const remainingTransfers = freeTransfers - transfersMadeCount;
-    if (remainingTransfers <= 0) {
-      const confirmHit = window.confirm(
-        "Yon have no free transfers remaining.\n\nMaking this transfer will deduct -4 points from your total score.\n\nDo you want to proceed?"
-      );
-      if (!confirmHit) return;
-    }
-
     const sellingPrice =
       oldPlayer.selling_price !== undefined
         ? oldPlayer.selling_price
@@ -408,7 +381,6 @@ export default function Planner({ data }) {
 
     setSquad(updatedVisualSquad);
     setBank(newBank);
-    setTransfersMadeCount((prev) => prev + 1);
     setTransferSource(null);
 
     setPlannedSquads((prev) => {
@@ -482,8 +454,6 @@ export default function Planner({ data }) {
       setIsSaved(false);
 
       setBank(1000);
-      setFreeTransfers(1);
-      setTransfersMadeCount(0);
 
       setSubstitutionSource(null);
       setTransferSource(null);
@@ -520,15 +490,9 @@ export default function Planner({ data }) {
 
       if (importedSquad.length < 15) throw new Error("Incomplete squad.");
 
-      const estimatedTransfers = calculateFreeTransfers(history);
-
       setSquad(importedSquad);
       setTeamInfo(info);
-
       setBank(info.last_deadline_bank || 0);
-      setTransfersMadeCount(0);
-      setFreeTransfers(estimatedTransfers);
-
       setIsSaved(true);
       setView("pitch");
       setViewingGw(currentActualGw);
@@ -609,12 +573,11 @@ export default function Planner({ data }) {
 
         {/* --- 2. Gameweek Navigator --- */}
         {isSaved && (
-          <div className="sticky top-16 z-30 dark:bg-gray-900/95 bg-transparent py-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0 transition-all border-b border-transparent data-[stuck=true]:border-gray-200">
+          <div className="sticky top-16 z-30 bg-transparent py-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0 transition-all border-b border-transparent data-[stuck=true]:border-gray-200">
             <GameweekNavigator
               viewingGw={viewingGw}
               currentActualGw={currentActualGw}
               setViewingGw={setViewingGw}
-              setFreeTransfers={setFreeTransfers}
             />
           </div>
         )}
@@ -664,7 +627,7 @@ export default function Planner({ data }) {
                 {/* 3. Money In Bank */}
                 <div className="text-center sm:text-left">
                   <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
-                    In Bank
+                    In the bank
                   </div>
                   <button
                     onClick={() => setIsBankModalOpen(true)}
@@ -684,57 +647,6 @@ export default function Planner({ data }) {
                       <Edit2 size={12} />
                     </div>
                   </button>
-                </div>
-
-                <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
-
-                {/* 4. Transfers */}
-                <div className="text-center sm:text-left">
-                  <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
-                    Transfers
-                  </div>
-                  {/* Check if we are in planning mode (viewing future GW) */}
-                  {viewingGw !== currentActualGw ? (
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`text-2xl font-black ${
-                          freeTransfers - transfersMadeCount < 0
-                            ? "text-red-500"
-                            : "text-gray-800 dark:text-white"
-                        }`}
-                      >
-                        {Math.max(0, freeTransfers - transfersMadeCount)}
-                      </div>
-
-                      <div className="flex flex-col gap-0.5">
-                        <button
-                          onClick={() =>
-                            setFreeTransfers((prev) => Math.min(5, prev + 1))
-                          }
-                          className="bg-gray-200 dark:bg-gray-700 hover:bg-green-500 hover:text-white text-[10px] w-5 h-4 flex items-center justify-center rounded leading-none transition-colors"
-                        >
-                          ▲
-                        </button>
-                        <button
-                          onClick={() =>
-                            setFreeTransfers((prev) => Math.max(1, prev - 1))
-                          }
-                          className="bg-gray-200 dark:bg-gray-700 hover:bg-red-500 hover:text-white text-[10px] w-5 h-4 flex items-center justify-center rounded leading-none transition-colors"
-                        >
-                          ▼
-                        </button>
-                      </div>
-
-                      {transfersMadeCount > freeTransfers && (
-                        <div className="text-xs text-red-500 font-bold whitespace-nowrap">
-                          -{(transfersMadeCount - freeTransfers) * 4} pts
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    // Show simple state if viewing current active gameweek
-                    <div className="text-sm text-gray-400 italic">Locked</div>
-                  )}
                 </div>
               </div>
             </div>

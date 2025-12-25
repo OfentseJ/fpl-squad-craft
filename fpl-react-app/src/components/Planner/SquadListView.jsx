@@ -18,7 +18,7 @@ export const SquadListView = ({
   const [fixtures, setFixtures] = useState([]);
   const [loadingFixtures, setLoadingFixtures] = useState(true);
 
-  // 1. Fetch Fixtures on Mount
+  // Fetch Fixtures on Mount
   useEffect(() => {
     const fetchFixtureData = async () => {
       try {
@@ -51,7 +51,6 @@ export const SquadListView = ({
     return "bg-[#80072d] text-white border border-red-900";
   };
 
-  // 2. Create a Map of TeamID -> Fixture Object { text, cssClass }
   const fixtureMap = useMemo(() => {
     if (!fixtures.length || !data?.teams) return {};
     const map = {};
@@ -96,7 +95,6 @@ export const SquadListView = ({
   }, [fixtures, data, gameweekId]);
 
   // --- Definitions ---
-  // NEW: Added CP (Current), PP (Purchase), SP (Selling)
   const statColumns = [
     { label: "CP", key: "now_cost", title: "Current Price" },
     { label: "PP", key: "purchase_price", title: "Purchase Price" },
