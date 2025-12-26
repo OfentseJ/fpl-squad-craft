@@ -13,8 +13,8 @@ export const SquadListView = ({
   substitutionSource,
   onSubstituteComplete,
   isSubstitutionValid,
+  allFixtures,
 }) => {
-  const { getFixtures } = useFPLApi();
   const [fixtures, setFixtures] = useState([]);
   const [loadingFixtures, setLoadingFixtures] = useState(true);
 
@@ -22,7 +22,7 @@ export const SquadListView = ({
   useEffect(() => {
     const fetchFixtureData = async () => {
       try {
-        const fixtureData = await getFixtures();
+        const fixtureData = allFixtures;
         setFixtures(fixtureData);
       } catch (err) {
         console.error("Failed to load fixtures", err);
@@ -32,7 +32,7 @@ export const SquadListView = ({
     };
 
     fetchFixtureData();
-  }, [getFixtures]);
+  }, [allFixtures]);
 
   // Determine if the SOURCE player is a starter (Index < 11)
   const sourceIndex = useMemo(

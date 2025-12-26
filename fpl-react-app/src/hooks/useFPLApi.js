@@ -1,4 +1,5 @@
 import { useRef, useCallback } from "react";
+import liverpoolBadge from "../assets/badges/liverpool.webp";
 
 export function useFPLApi() {
   const cache = useRef({});
@@ -70,6 +71,9 @@ export function useFPLApi() {
 
   const getTeamBadgeUrl = useCallback((teamCode) => {
     if (!teamCode) return null;
+    if (teamCode === 14) {
+      return liverpoolBadge;
+    }
     return `https://resources.premierleague.com/premierleague/badges/t${teamCode}.png`;
   }, []);
 
