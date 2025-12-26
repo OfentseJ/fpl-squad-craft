@@ -11,6 +11,7 @@ import {
   List,
   LayoutGrid,
   Edit2,
+  Calendar,
 } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
@@ -25,6 +26,8 @@ import { usePlannerStorage } from "../hooks/usePlannerStorage";
 import TeamInfoBanner from "../components/Planner/TeamInfoBanner";
 import LoadingSkeleton from "../components/LoadingSkeleton";
 import BankEditModal from "../components/Planner/BankEditModal";
+import FDRModal from "../components/Planner/FDRModal";
+import TeamValueEditModal from "../components/Planner/TeamValueEditModal";
 
 export default function Planner({ data }) {
   // --- HOOKS ---
@@ -76,6 +79,9 @@ export default function Planner({ data }) {
   });
 
   const [isBankModalOpen, setIsBankModalOpen] = useState(false);
+  const [isFDRModalOpen, setIsFDRModalOpen] = useState(false);
+  const [manualTeamValue, setManualTeamValue] = useState(null);
+  const [isTeamValueModalOpen, setIsTeamValueModalOpen] = useState(false);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -244,8 +250,10 @@ export default function Planner({ data }) {
   const handleSelectedPlayer = (player) => {
     setSelectedPlayer({ ...player, teams: data.teams });
   };
-
-  const totalCost = squad.reduce((sum, p) => sum + p.now_cost, 0) / 10;
+  // --- CALCULATED VALUES ---
+  const calculatedTeamValue = squad.reduce((sum, p) => sum + p.now_cost, 0);
+  const activeTeamValue =
+    manualTeamValue !== null ? manualTeamValue : calculatedTeamValue;
 
   // --- SUBSTITUTION ---
   const isSubstitutionValid = (sourceId, targetId) => {
@@ -583,12 +591,9 @@ export default function Planner({ data }) {
         )}
 
         {/* --- 3. Summary Dashboard --- */}
-        {/* Removed 'sticky' class here */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
           <div className="flex flex-col xl:flex-row justify-between items-center gap-4">
-            {/* Left: Squad Stats (Scrollable Container) */}
-            {/* w-full ensures it takes full width on mobile to allow scrolling */}
-            {/* overflow-x-auto enables the horizontal scroll */}
+            {/* Left: Squad Stats  */}
             <div className="w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0">
               <div className="flex items-center gap-6 min-w-max px-2 mx-auto xl:mx-0">
                 {/* 1. Squad Size */}
@@ -617,14 +622,27 @@ export default function Planner({ data }) {
                   <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
                     Team Value
                   </div>
-                  <div className="text-2xl font-black text-green-600 dark:text-green-400">
-                    £{totalCost.toFixed(1)}m
-                  </div>
+                  <button
+                    onClick={() => setIsTeamValueModalOpen(true)}
+                    className="group flex items-center gap-2 transition-opacity hover:opacity-80"
+                    title="Click to edit team value"
+                  >
+                    <div className="text-2xl font-black text-green-600 dark:text-green-400">
+                      {/* Add an asterisk if manually overridden */}
+                      {manualTeamValue !== null && (
+                        <span className="text-amber-500 mr-1">*</span>
+                      )}
+                      £{(activeTeamValue / 10).toFixed(1)}m
+                    </div>
+                    <div className="bg-gray-100 dark:bg-gray-700 p-1 rounded text-gray-500">
+                      <Edit2 size={12} />
+                    </div>
+                  </button>
                 </div>
 
                 <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
 
-                {/* 3. Money In Bank */}
+                {/* Money In Bank */}
                 <div className="text-center sm:text-left">
                   <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">
                     In the bank
@@ -742,18 +760,20 @@ export default function Planner({ data }) {
                 substitutionSource={substitutionSource}
                 onSubstituteComplete={handleSubstitutionComplete}
                 isSubstitutionValid={isSubstitutionValid}
+                allFixtures={fixtures}
               />
             )}
 
-            {/* Import CTA */}
-            {squad.length === 0 && (
-              <div className="mt-8 text-center">
+            {/* FDR Button */}
+            <div className="mt-8 text-center">
+              {/* Import CTA */}
+              {squad.length === 0 && (
                 <button
                   onClick={() => setIsImportModalOpen(true)}
                   className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 px-6 py-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform"
                 >
                   <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-600">
-                    <Download size={24} />
+                    <Download size={20} />
                   </div>
                   <div className="text-left">
                     <div className="font-bold text-gray-900 dark:text-white">
@@ -764,8 +784,24 @@ export default function Planner({ data }) {
                     </div>
                   </div>
                 </button>
-              </div>
-            )}
+              )}
+              <button
+                onClick={() => setIsFDRModalOpen(true)}
+                className="inline-flex items-center ml-2 gap-2 bg-white dark:bg-gray-800 px-6 py-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform"
+              >
+                <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-600">
+                  <Calendar size={20} />
+                </div>
+                <div className="text-left">
+                  <div className="font-bold text-gray-900 dark:text-white">
+                    FDR
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    View Fixture Difficulty Ratings
+                  </div>
+                </div>
+              </button>
+            </div>
           </div>
           {/* RIGHT COL: PLAYER SELECTOR (Span 4) */}
           <div
@@ -802,7 +838,6 @@ export default function Planner({ data }) {
 
               <div className="max-h-150 overflow-y-auto p-2 space-y-1 bg-gray-50/50 dark:bg-gray-900/20">
                 {filteredPlayers.map((p) => {
-                  // ... (Existing mapping logic for filteredPlayers) ...
                   const posFull = isPositionFull(p.element_type);
                   const teamFull = isTeamFull(p.team, transferSource);
                   const isDisabled = transferSource
@@ -982,6 +1017,21 @@ export default function Planner({ data }) {
           onClose={() => setIsImportModalOpen(false)}
           onImport={handleImportTeam}
           data={data}
+        />
+        <FDRModal
+          isOpen={isFDRModalOpen}
+          onClose={() => setIsFDRModalOpen(false)}
+          teams={data?.teams}
+          fixtures={fixtures}
+          startGw={viewingGw}
+        />
+        <TeamValueEditModal
+          isOpen={isTeamValueModalOpen}
+          onClose={() => setIsTeamValueModalOpen(false)}
+          currentValue={activeTeamValue}
+          onSave={setManualTeamValue}
+          onReset={() => setManualTeamValue(null)}
+          isManual={manualTeamValue !== null}
         />
         <BankEditModal
           isOpen={isBankModalOpen}
