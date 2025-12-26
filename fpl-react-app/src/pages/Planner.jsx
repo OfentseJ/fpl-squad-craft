@@ -796,9 +796,6 @@ export default function Planner({ data }) {
                   <div className="font-bold text-gray-900 dark:text-white">
                     FDR
                   </div>
-                  <div className="text-xs text-gray-500">
-                    View Fixture Difficulty Ratings
-                  </div>
                 </div>
               </button>
             </div>
