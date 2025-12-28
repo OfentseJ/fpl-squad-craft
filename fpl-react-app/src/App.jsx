@@ -7,23 +7,14 @@ import Home from "./pages/Home";
 import Trends from "./pages/Trends";
 import Live from "./pages/Live";
 import Planner from "./pages/Planner";
-import { DarkModeContext } from "./context/DarkModeContext";
 import { useFPLApi } from "./hooks/useFPLApi";
 
 export default function App() {
-  const [dark, setDark] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const { getBootstrap } = useFPLApi();
-  useEffect(() => {
-    if (dark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [dark]);
 
   useEffect(() => {
     getBootstrap()
@@ -44,18 +35,16 @@ export default function App() {
     );
 
   return (
-    <DarkModeContext.Provider value={{ dark, setDark }}>
-      <HashRouter>
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-200 transition-colors">
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home data={data} />} />
-            <Route path="/trends" element={<Trends data={data} />} />
-            <Route path="/live" element={<Live data={data} />} />
-            <Route path="/planner" element={<Planner data={data} />} />
-          </Routes>
-        </div>
-      </HashRouter>
-    </DarkModeContext.Provider>
+    <HashRouter>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-200 transition-colors">
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home data={data} />} />
+          <Route path="/trends" element={<Trends data={data} />} />
+          <Route path="/live" element={<Live data={data} />} />
+          <Route path="/planner" element={<Planner data={data} />} />
+        </Routes>
+      </div>
+    </HashRouter>
   );
 }

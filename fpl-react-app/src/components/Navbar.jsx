@@ -1,21 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
-import { useState, useContext } from "react";
-import {
-  Menu,
-  X,
-  Activity,
-  Users,
-  TrendingUp,
-  Star,
-  Sun,
-  Moon,
-} from "lucide-react";
-import { DarkModeContext } from "../context/DarkModeContext";
+import { useState } from "react";
+import { Menu, X, Activity, Users, TrendingUp, Star } from "lucide-react";
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const { dark, setDark } = useContext(DarkModeContext);
 
   const links = [
     { path: "/", label: "Home", icon: Users },
@@ -62,28 +51,10 @@ export default function Navbar() {
                 </Link>
               );
             })}
-
-            {/* Divider */}
-            <div className="h-6 w-px bg-green-600/50 mx-2" />
-
-            {/* Dark Mode Toggle (Integrated) */}
-            <button
-              onClick={() => setDark(!dark)}
-              className="p-2 rounded-full bg-green-800/50 hover:bg-green-800 text-green-100 transition-colors"
-              aria-label="Toggle Dark Mode"
-            >
-              {dark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
           </div>
 
           {/* Mobile Menu Button */}
           <div className="flex items-center gap-4 md:hidden">
-            <button
-              onClick={() => setDark(!dark)}
-              className="p-2 text-green-100"
-            >
-              {dark ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
             <button
               className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
               onClick={() => setMobileOpen(!mobileOpen)}

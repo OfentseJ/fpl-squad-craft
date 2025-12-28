@@ -7,7 +7,6 @@ import {
   Info,
   AlertTriangle,
   RefreshCw,
-  Lock,
   List,
   LayoutGrid,
   Edit2,
@@ -43,13 +42,8 @@ export default function Planner({ data }) {
     isStorageLoaded,
   } = usePlannerStorage();
 
-  const {
-    getShirtUrl,
-    getFixtures,
-    importUserTeam,
-    getUserTeamInfo,
-    getEntryHistory,
-  } = useFPLApi();
+  const { getShirtUrl, getFixtures, importUserTeam, getUserTeamInfo } =
+    useFPLApi();
 
   // --- LOCAL STATE ---
   const [squad, setSquad] = useState([]);
@@ -107,15 +101,26 @@ export default function Planner({ data }) {
     }
   }, [isStorageLoaded, baseSquad]);
 
-  // --- REFRESH DATA LOGIC (Background Sync) ---
+  // --- REFRESH DATA LOGIC (Auto-Update Squad & Stats) ---
   const lastRefreshedId = useRef(null);
   useEffect(() => {
-    if (isStorageLoaded && teamInfo?.id) {
-      if (lastRefreshedId.current === teamInfo.id) return;
-      lastRefreshedId.current = teamInfo.id;
+    if (isStorageLoaded && teamInfo?.id && data?.events) {
+      if (lastRefreshedId.current === `${teamInfo.id}-${currentActualGw}`)
+        return;
 
-      const refreshTeamStats = async () => {
+      const refreshTeamData = async () => {
+        lastRefreshedId.current = `${teamInfo.id}-${currentActualGw}`;
+
         try {
+          if (
+            teamInfo.current_event &&
+            currentActualGw > teamInfo.current_event
+          ) {
+            console.log("New Gameweek detected! Auto-importing squad...");
+            await loadRemoteSquad(teamInfo.id, currentActualGw);
+            return;
+          }
+
           const latestInfo = await getUserTeamInfo(teamInfo.id);
           if (latestInfo) {
             if (
@@ -130,10 +135,17 @@ export default function Planner({ data }) {
           console.warn("Background refresh failed:", err);
         }
       };
-      refreshTeamStats();
-    }
-  }, [isStorageLoaded, teamInfo?.id, getUserTeamInfo, setTeamInfo]);
 
+      refreshTeamData();
+    }
+  }, [
+    isStorageLoaded,
+    teamInfo,
+    currentActualGw,
+    getUserTeamInfo,
+    setTeamInfo,
+    data,
+  ]);
   // --- NAVIGATION SNAPSHOT LOGIC ---
   useEffect(() => {
     if (!isSaved) return;
@@ -470,13 +482,12 @@ export default function Planner({ data }) {
     }
   };
 
-  const handleImportTeam = async (teamId) => {
+  // --- REUSABLE IMPORT FUNCTION ---
+  const loadRemoteSquad = async (teamId, targetGw) => {
     try {
-      const currentEvent = data.events.find((e) => e.is_current)?.id || 1;
-      const [picks, info, history] = await Promise.all([
-        importUserTeam(teamId, currentEvent),
+      const [picks, info] = await Promise.all([
+        importUserTeam(teamId, targetGw),
         getUserTeamInfo(teamId),
-        getEntryHistory(teamId),
       ]);
 
       if (!picks || picks.length === 0) throw new Error("No players found.");
@@ -503,10 +514,24 @@ export default function Planner({ data }) {
       setBank(info.last_deadline_bank || 0);
       setIsSaved(true);
       setView("pitch");
-      setViewingGw(currentActualGw);
+
+      // Sync with storage
+      setBaseSquad(importedSquad);
       saveImportedSquad(importedSquad, info);
+
+      return true;
     } catch (err) {
-      console.error(err);
+      console.error("Auto-update failed:", err);
+      return false;
+    }
+  };
+
+  const handleImportTeam = async (teamId) => {
+    const targetGw = data.events.find((e) => e.is_current)?.id || 1;
+    const success = await loadRemoteSquad(teamId, targetGw);
+    if (success) {
+      setViewingGw(targetGw);
+    } else {
       alert("Error importing team.");
     }
   };
