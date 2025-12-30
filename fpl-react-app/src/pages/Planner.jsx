@@ -512,6 +512,7 @@ export default function Planner({ data }) {
       setSquad(importedSquad);
       setTeamInfo(info);
       setBank(info.last_deadline_bank || 0);
+      setManualTeamValue(null);
       setIsSaved(true);
       setView("pitch");
 
