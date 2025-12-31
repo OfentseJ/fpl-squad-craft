@@ -10,9 +10,8 @@ export default function FDRModal({
   fixtures,
   startGw,
 }) {
-  const { getTeamBadgeUrl } = useFPLApi(); // 2. Get the badge helper
+  const { getTeamBadgeUrl } = useFPLApi();
 
-  // Logic to organize fixtures into a grid (Same as before)
   const schedule = useMemo(() => {
     if (!teams || !fixtures) return {};
 

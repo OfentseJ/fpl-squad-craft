@@ -7,43 +7,31 @@ export function getCurrentGameweek(events) {
   return current || next || events[0];
 }
 
-// src/utils/FplStatsUtils.js
-
-/**
- * Calculates Poisson probability for a single match (as defined previously)
- */
 export const calculateCleanSheetProbability = (team, opponent, isHome) => {
   if (!team || !opponent) return 0;
 
   const AVG_GOALS_HOME = 1.55;
   const AVG_GOALS_AWAY = 1.2;
-  const LEAGUE_AVG_STRENGTH = 1050; // Approximate pivot
+  const LEAGUE_AVG_STRENGTH = 1050;
 
-  // 1. Determine baseline goals for the OPPONENT
   const baseLeagueGoals = isHome ? AVG_GOALS_AWAY : AVG_GOALS_HOME;
 
-  // 2. Opponent Attack Strength (If we are Home, Opponent is Away)
   const oppAttackStrength = isHome
     ? opponent.strength_attack_away
     : opponent.strength_attack_home;
 
-  // 3. Our Defense Strength
   const teamDefStrength = isHome
     ? team.strength_defence_home
     : team.strength_defence_away;
 
-  // 4. Calculate Lambda (Expected Goals Conceded)
   const xGC =
     baseLeagueGoals *
     (oppAttackStrength / LEAGUE_AVG_STRENGTH) *
     (LEAGUE_AVG_STRENGTH / teamDefStrength);
 
-  return Math.exp(-xGC); // P(0 goals)
+  return Math.exp(-xGC);
 };
 
-/**
- * Returns an array of teams ranked by total Expected Clean Sheets (xCS) over next 5 GWs
- */
 export const getRankedDefenses = (teams, fixtures, currentGw) => {
   return teams
     .map((team) => {
