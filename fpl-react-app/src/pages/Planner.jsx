@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   Edit2,
   Calendar,
+  ShieldCheck,
 } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
@@ -27,6 +28,7 @@ import LoadingSkeleton from "../components/LoadingSkeleton";
 import BankEditModal from "../components/Planner/BankEditModal";
 import FDRModal from "../components/Planner/FDRModal";
 import TeamValueEditModal from "../components/Planner/TeamValueEditModal";
+import CleanSheetModal from "../components/Planner/CleanSheetModal";
 
 export default function Planner({ data }) {
   // --- HOOKS ---
@@ -76,6 +78,7 @@ export default function Planner({ data }) {
   const [isFDRModalOpen, setIsFDRModalOpen] = useState(false);
   const [manualTeamValue, setManualTeamValue] = useState(null);
   const [isTeamValueModalOpen, setIsTeamValueModalOpen] = useState(false);
+  const [isCSModalOpen, setIsCSModalOpen] = useState(false);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -811,6 +814,7 @@ export default function Planner({ data }) {
                   </div>
                 </button>
               )}
+              {/* FDR Button */}
               <button
                 onClick={() => setIsFDRModalOpen(true)}
                 className="inline-flex items-center ml-2 gap-2 bg-white dark:bg-gray-800 px-6 py-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform"
@@ -822,6 +826,27 @@ export default function Planner({ data }) {
                   <div className="font-bold text-gray-900 dark:text-white">
                     FDR
                   </div>
+                  <div className="text-xs text-gray-500">
+                    Fixture Difficutly Ticker
+                  </div>
+                </div>
+              </button>
+
+              {/* Clean Sheet Odds Button*/}
+              <button
+                onClick={() => setIsCSModalOpen(true)}
+                className="inline-flex items-center ml-2 gap-2 bg-white dark:bg-gray-800 px-6 py-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform"
+              >
+                <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-600">
+                  <ShieldCheck size={20} />
+                </div>
+                <div className="text-left hidden sm:block">
+                  {" "}
+                  {/* Hide text on very small screens if needed */}
+                  <div className="font-bold text-gray-900 dark:text-white">
+                    CS Odds
+                  </div>
+                  <div className="text-xs text-gray-500">Defensive Rank</div>
                 </div>
               </button>
             </div>
@@ -1044,6 +1069,13 @@ export default function Planner({ data }) {
         <FDRModal
           isOpen={isFDRModalOpen}
           onClose={() => setIsFDRModalOpen(false)}
+          teams={data?.teams}
+          fixtures={fixtures}
+          startGw={viewingGw}
+        />
+        <CleanSheetModal
+          isOpen={isCSModalOpen}
+          onClose={() => setIsCSModalOpen(false)}
           teams={data?.teams}
           fixtures={fixtures}
           startGw={viewingGw}

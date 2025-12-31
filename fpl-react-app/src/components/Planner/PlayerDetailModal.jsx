@@ -10,6 +10,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useFPLApi } from "../../hooks/useFPLApi";
+import { getFDRClass } from "../../utils/FplUtils";
 
 export default function PlayerDetailModal({
   player,
@@ -68,7 +69,7 @@ export default function PlayerDetailModal({
 
     return teamFixtures
       .sort((a, b) => a.event - b.event)
-      .slice(0, 5) // Show 5 fixtures for better planning
+      .slice(0, 5)
       .map((f) => {
         const isHome = f.team_h === player.team;
         const opponentId = isHome ? f.team_a : f.team_h;
@@ -87,14 +88,6 @@ export default function PlayerDetailModal({
   };
 
   const nextFixtures = getNextFixtures();
-
-  // Official-ish FPL FDR Colors
-  const getFDRColor = (difficulty) => {
-    if (difficulty <= 2) return "bg-[#00FF87] text-black"; // Green
-    if (difficulty === 3) return "bg-[#E7E7E7] text-black"; // Grey
-    if (difficulty === 4) return "bg-[#FF3350] text-white"; // Pinkish Red
-    return "bg-[#80072D] text-white"; // Dark Red
-  };
 
   return (
     <>
@@ -236,7 +229,7 @@ export default function PlayerDetailModal({
                       </span>
 
                       <div
-                        className={`w-full text-[10px] font-bold text-center py-0.5 rounded ${getFDRColor(
+                        className={`w-full text-[10px] font-bold text-center py-0.5 rounded ${getFDRClass(
                           fix.difficulty
                         )}`}
                       >

@@ -1,5 +1,6 @@
 import { useFPLApi } from "../../hooks/useFPLApi";
 import { AlertTriangle } from "lucide-react";
+import { getFDRClass } from "../../utils/FplUtils";
 
 export default function PlayerShirt({
   player,
@@ -82,39 +83,20 @@ export default function PlayerShirt({
         };
       });
 
-      // A. Display Text
-      // Join multiple opponents with a comma
       opponentDisplay = opponents.map((o) => o.display).join(", ");
 
-      // B. Difficulty
-      // If DGW, we take the average difficulty rounded up? Or max?
-      // Usually showing the 'hardest' color warns the user better,
-      // OR we can Average. Let's Average for a balanced heatmap look.
       const totalDiff = opponents.reduce((sum, o) => sum + o.diff, 0);
       difficulty = Math.round(totalDiff / opponents.length);
     } else if (gameweekId) {
-      // Explicit blank GW
       opponentDisplay = "BLK";
       difficulty = 0;
     }
   }
 
-  // --- FDR COLOR HELPER ---
-  const getFDRClass = (diff) => {
-    if (!diff || diff === 0)
-      return "bg-gray-100 dark:bg-gray-700 text-gray-400"; // Blank/Empty
-    if (diff <= 2) return "bg-[#01fc7a] text-black border-green-600";
-    if (diff === 3) return "bg-gray-200 text-black border-gray-300";
-    if (diff === 4) return "bg-[#ff1751] text-white border-red-600";
-    return "bg-[#80072d] text-white border-red-900";
-  };
-
   // --- LIVE POINTS LOGIC ---
   let bottomBoxContent = opponentDisplay;
   let bottomBoxClass = getFDRClass(difficulty);
 
-  // Font sizing adjustment for DGW text
-  // If the text is long (e.g. "ARS, CHE"), make font smaller
   const isDGW = bottomBoxContent.includes(",");
   const fontSizeClass = isDGW
     ? "text-[8px] sm:text-[9px]"
@@ -123,7 +105,6 @@ export default function PlayerShirt({
   if (liveData) {
     const hasPlayed = liveData.minutes > 0 || liveData.total_points !== 0;
 
-    // In DGW, we show points if ANY match has started (minutes > 0)
     if (hasPlayed || isMatchFinished) {
       let points = liveData.total_points;
       if (isCaptain) points = points * 2;

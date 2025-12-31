@@ -1,6 +1,7 @@
 import { X, Calendar } from "lucide-react";
 import { useMemo } from "react";
 import { useFPLApi } from "../../hooks/useFPLApi"; // 1. Import Hook
+import { getFDRClass } from "../../utils/FplUtils";
 
 export default function FDRModal({
   isOpen,
@@ -9,9 +10,8 @@ export default function FDRModal({
   fixtures,
   startGw,
 }) {
-  const { getTeamBadgeUrl } = useFPLApi(); // 2. Get the badge helper
+  const { getTeamBadgeUrl } = useFPLApi();
 
-  // Logic to organize fixtures into a grid (Same as before)
   const schedule = useMemo(() => {
     if (!teams || !fixtures) return {};
 
@@ -49,14 +49,6 @@ export default function FDRModal({
 
     return grid;
   }, [teams, fixtures, startGw]);
-
-  // Updated Colors: Added text colors to ensure contrast
-  const getFDRClass = (diff) => {
-    if (diff <= 2) return "bg-[#01fc7a] text-black border-green-600"; // Easy (Green)
-    if (diff === 3) return "bg-gray-200 text-gray-900 border-gray-300"; // Med (Grey)
-    if (diff === 4) return "bg-[#ff1751] text-white border-red-600"; // Hard (Red)
-    return "bg-[#80072d] text-white border-red-900"; // Tough (Dark Red)
-  };
 
   const getTeamShortName = (id) =>
     teams?.find((t) => t.id === id)?.short_name || "-";

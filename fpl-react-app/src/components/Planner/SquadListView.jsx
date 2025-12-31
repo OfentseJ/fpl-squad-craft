@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Info, XCircle, ArrowLeftRight } from "lucide-react";
 import { useFPLApi } from "../../hooks/useFPLApi";
+import { getFDRClass } from "../../utils/FplUtils";
 
 export const SquadListView = ({
   squad,
@@ -40,16 +41,6 @@ export const SquadListView = ({
     [squad, substitutionSource]
   );
   const sourceIsStarter = sourceIndex >= 0 && sourceIndex < 11;
-
-  // --- FDR COLOR HELPER ---
-  const getFDRClass = (diff) => {
-    if (!diff || diff === 0)
-      return "bg-gray-100 dark:bg-gray-700 text-gray-400";
-    if (diff <= 2) return "bg-[#01fc7a] text-black border border-green-600";
-    if (diff === 3) return "bg-gray-200 text-black border border-gray-300";
-    if (diff === 4) return "bg-[#ff1751] text-white border border-red-600";
-    return "bg-[#80072d] text-white border border-red-900";
-  };
 
   const fixtureMap = useMemo(() => {
     if (!fixtures.length || !data?.teams) return {};
