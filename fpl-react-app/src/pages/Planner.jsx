@@ -96,11 +96,10 @@ export default function Planner({ data }) {
   }, [data]);
 
   useEffect(() => {
-    if (isStorageLoaded) {
-      if (baseSquad.length > 0 && squad.length === 0) {
-        setSquad(baseSquad);
-        setIsSaved(true);
-      }
+    if (!isStorageLoaded) return;
+    if (baseSquad.length > 0 && squad.length === 0) {
+      setSquad(baseSquad);
+      setIsSaved(true);
     }
   }, [isStorageLoaded, baseSquad]);
 
@@ -163,20 +162,30 @@ export default function Planner({ data }) {
       return;
     }
 
-    const prevGw = viewingGw - 1;
-    const prevSquad =
-      prevGw === currentActualGw ? baseSquad : plannedSquads[prevGw];
+    let sourceSquad = null;
 
-    if (prevSquad && prevSquad.length > 0) {
-      const clonedSquad = JSON.parse(JSON.stringify(prevSquad));
+    for (let i = viewingGw - 1; i >= currentActualGw; i--) {
+      if (i === currentActualGw) {
+        sourceSquad = baseSquad;
+        break;
+      }
+      if (plannedSquads[i] && plannedSquads[i].length > 0) {
+        sourceSquad = plannedSquads[i];
+        break;
+      }
+    }
+
+    if (sourceSquad && sourceSquad.length > 0) {
+      const clonedSquad = JSON.parse(JSON.stringify(sourceSquad));
+
       setSquad(clonedSquad);
+
       setPlannedSquads((prev) => ({
         ...prev,
         [viewingGw]: clonedSquad,
       }));
     }
   }, [viewingGw, currentActualGw, isSaved, baseSquad]);
-
   // --- STORAGE SYNC EFFECT ---
   useEffect(() => {
     localStorage.setItem("fpl_planner_bank", bank);
