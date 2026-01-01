@@ -232,7 +232,7 @@ export default function Planner({ data }) {
   // --- ACTIONS ---
   const addPlayer = (player) => {
     if (!ensurePlanningMode()) return;
-    if (squad.length >= 15) return;
+    if (squad.length >= 15) return alert("Your squad is full!");
     if (isPositionFull(player.element_type)) return;
     if (isTeamFull(player.team)) return;
 
@@ -886,10 +886,6 @@ export default function Planner({ data }) {
                 {filteredPlayers.map((p) => {
                   const posFull = isPositionFull(p.element_type);
                   const teamFull = isTeamFull(p.team, transferSource);
-                  const isDisabled = transferSource
-                    ? p.element_type !== positionFilter || teamFull
-                    : posFull || teamFull || isSaved;
-
                   const chance = p.chance_of_playing_next_round;
                   const isInjured = chance !== null && chance < 100;
                   const injuryColorClass =
@@ -902,13 +898,10 @@ export default function Planner({ data }) {
                       key={p.id}
                       onClick={() => {
                         if (transferSource) handleTransferComplete(p);
-                        else if (!isDisabled) addPlayer(p);
+                        else addPlayer(p);
                       }}
-                      disabled={isDisabled}
                       className={`w-full text-left p-2.5 rounded-xl flex justify-between items-center transition-all border group ${
-                        isDisabled
-                          ? "opacity-40 cursor-not-allowed bg-transparent border-transparent grayscale"
-                          : transferSource
+                        transferSource
                           ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-amber-400 hover:shadow-md cursor-pointer"
                           : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:shadow-md cursor-pointer"
                       }`}
