@@ -813,7 +813,7 @@ export default function Planner({ data }) {
                   <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-600">
                     <Download size={20} />
                   </div>
-                  <div className="text-left">
+                  <div className="text-left hidden sm:block">
                     <div className="font-bold text-gray-900 dark:text-white">
                       Import FPL Team
                     </div>
