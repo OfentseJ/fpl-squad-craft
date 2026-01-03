@@ -67,6 +67,29 @@ export const getRankedDefenses = (teams, fixtures, currentGw) => {
     .sort((a, b) => b.totalXCS - a.totalXCS);
 };
 
+export const getRankedAttacks = (teams, fixtures, startGw) => {
+  // 1. Filter fixtures for next 5 GWs
+  // 2. Loop through teams
+  // 3. Calculate Projected Goals based on:
+  //    (Team Attack Strength + Opponent Def Weakness) * (Home/Away Factor)
+  // Return shape should be:
+  // [
+  //   {
+  //     team: { ...teamObject },
+  //     totalXG: 10.5,
+  //     matchDetails: [
+  //       {
+  //         opponent: { short_name: "ARS" },
+  //         isHome: true,
+  //         projectedGoals: 1.2
+  //       },
+  //       ...
+  //     ]
+  //   }
+  // ]
+  // .sort((a, b) => b.totalXG - a.totalXG);
+};
+
 export const getFDRClass = (diff) => {
   if (diff <= 2) return "bg-[#01fc7a] text-black border-green-600"; // Easy (Green)
   if (diff === 3) return "bg-gray-200 text-gray-900 border-gray-300"; // Med (Grey)
@@ -79,4 +102,14 @@ export const getProbColor = (prob) => {
   if (prob >= 0.35) return "bg-green-100 text-green-800";
   if (prob >= 0.2) return "bg-gray-100 text-gray-800";
   return "bg-red-50 text-red-600";
+};
+
+export const getGoalColor = (goals) => {
+  if (goals >= 2.5)
+    return "bg-green-100 border-green-200 text-green-800 dark:bg-green-900/40 dark:border-green-800 dark:text-green-300"; // Haul potential
+  if (goals >= 1.8)
+    return "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/40 dark:border-blue-800 dark:text-blue-300"; // Good
+  if (goals >= 1.2)
+    return "bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400"; // Average
+  return "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/40 dark:border-red-800 dark:text-red-300"; // Poor
 };
