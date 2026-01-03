@@ -12,6 +12,7 @@ import {
   Edit2,
   Calendar,
   ShieldCheck,
+  Target,
 } from "lucide-react";
 import Pitch from "../components/Planner/Pitch";
 import PlayerFilters from "../components/Planner/PlayerFilters";
@@ -29,6 +30,7 @@ import BankEditModal from "../components/Planner/BankEditModal";
 import FDRModal from "../components/Planner/FDRModal";
 import TeamValueEditModal from "../components/Planner/TeamValueEditModal";
 import CleanSheetModal from "../components/Planner/CleanSheetModal";
+import ProjectedGoalsModal from "../components/Planner/ProjectedGoalsModal";
 
 export default function Planner({ data }) {
   // --- HOOKS ---
@@ -79,6 +81,7 @@ export default function Planner({ data }) {
   const [manualTeamValue, setManualTeamValue] = useState(null);
   const [isTeamValueModalOpen, setIsTeamValueModalOpen] = useState(false);
   const [isCSModalOpen, setIsCSModalOpen] = useState(false);
+  const [isPGModalOpen, setIsPGModalOpen] = useState(false);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -856,6 +859,21 @@ export default function Planner({ data }) {
                   <div className="text-xs text-gray-500">Defensive Rank</div>
                 </div>
               </button>
+              {/* Projected Goals Button*/}
+              <button
+                onClick={() => setIsPGModalOpen(true)}
+                className="inline-flex items-center ml-2 gap-2 bg-white dark:bg-gray-800 px-6 py-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform"
+              >
+                <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-600">
+                  <Target size={20} />
+                </div>
+                <div className="text-left hidden sm:block">
+                  <div className="font-bold text-gray-900 dark:text-white">
+                    pGoals
+                  </div>
+                  <div className="text-xs text-gray-500">pGoals Rank</div>
+                </div>
+              </button>
             </div>
           </div>
           {/* RIGHT COL: PLAYER SELECTOR (Span 4) */}
@@ -1076,6 +1094,13 @@ export default function Planner({ data }) {
         <CleanSheetModal
           isOpen={isCSModalOpen}
           onClose={() => setIsCSModalOpen(false)}
+          teams={data?.teams}
+          fixtures={fixtures}
+          startGw={viewingGw}
+        />
+        <ProjectedGoalsModal
+          isOpen={isPGModalOpen}
+          onClose={() => setIsPGModalOpen(false)}
           teams={data?.teams}
           fixtures={fixtures}
           startGw={viewingGw}

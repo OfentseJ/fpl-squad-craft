@@ -68,26 +68,97 @@ export const getRankedDefenses = (teams, fixtures, currentGw) => {
 };
 
 export const getRankedAttacks = (teams, fixtures, startGw) => {
-  // 1. Filter fixtures for next 5 GWs
-  // 2. Loop through teams
-  // 3. Calculate Projected Goals based on:
-  //    (Team Attack Strength + Opponent Def Weakness) * (Home/Away Factor)
-  // Return shape should be:
-  // [
-  //   {
-  //     team: { ...teamObject },
-  //     totalXG: 10.5,
-  //     matchDetails: [
-  //       {
-  //         opponent: { short_name: "ARS" },
-  //         isHome: true,
-  //         projectedGoals: 1.2
-  //       },
-  //       ...
-  //     ]
-  //   }
-  // ]
-  // .sort((a, b) => b.totalXG - a.totalXG);
+  const BASE_GOALS_PER_MATCH = 1.35;
+  const NUMBER_OF_GWS = 5;
+  const endGw = startGw + NUMBER_OF_GWS - 1;
+
+  // Helper to find team object by ID
+  const getTeam = (id) => teams.find((t) => t.id === id);
+
+  const rankedTeams = teams.map((team) => {
+    let totalXG = 0;
+    const matchDetails = [];
+
+    // Iterate specifically through the next 5 GW numbers to maintain table columns
+    for (let gw = startGw; gw <= endGw; gw++) {
+      // Find all fixtures for this team in this specific GW (Handles DGWs)
+      const gwFixtures = fixtures.filter(
+        (f) => f.event === gw && (f.team_h === team.id || f.team_a === team.id)
+      );
+
+      if (gwFixtures.length === 0) {
+        // BLANK GAMEWEEK
+        matchDetails.push({
+          opponent: { short_name: "-" },
+          isHome: true,
+          projectedGoals: 0,
+          isBlank: true,
+        });
+        continue;
+      }
+
+      // Calculate xG for this GW (Summing multiple matches if DGW)
+      let gwProjectedGoals = 0;
+      let primaryOpponent = null; // Used for the label
+      let primaryIsHome = true;
+
+      gwFixtures.forEach((fixture, index) => {
+        const isHome = fixture.team_h === team.id;
+        const opponentId = isHome ? fixture.team_a : fixture.team_h;
+        const opponent = getTeam(opponentId);
+
+        if (!opponent) return;
+
+        // Save the first match details for the UI label
+        if (index === 0) {
+          primaryOpponent = opponent;
+          primaryIsHome = isHome;
+        }
+
+        // Get My Attack Strength (Home vs Away)
+        const myAttackStrength = isHome
+          ? team.strength_attack_home
+          : team.strength_attack_away;
+
+        // Get Opponent Defence Strength
+        // (If I am Home, they are Away, so use their Def Away strength)
+        const oppDefenseStrength = isHome
+          ? opponent.strength_defence_away
+          : opponent.strength_defence_home;
+
+        // Calculate Ratio
+        // Ratio > 1.0 means my attack is better than their defense
+        const ratio = myAttackStrength / oppDefenseStrength;
+
+        // Calculate Expected Goals
+        // We use Math.pow(ratio, 1.5) to slightly exaggerate the advantage/disadvantage
+        // This helps identify "Haul" potentials better than linear math.
+        const matchXG = BASE_GOALS_PER_MATCH * Math.pow(ratio, 1.5);
+
+        gwProjectedGoals += matchXG;
+      });
+
+      // Add to Total (for sorting the list later)
+      totalXG += gwProjectedGoals;
+
+      // Push cell data
+      matchDetails.push({
+        opponent: primaryOpponent,
+        isHome: primaryIsHome,
+        // If it's a double
+        isDgw: gwFixtures.length > 1,
+        projectedGoals: gwProjectedGoals,
+      });
+    }
+
+    return {
+      team,
+      totalXG,
+      matchDetails,
+    };
+  });
+
+  return rankedTeams.sort((a, b) => b.totalXG - a.totalXG);
 };
 
 export const getFDRClass = (diff) => {

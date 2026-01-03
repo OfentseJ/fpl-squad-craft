@@ -25,7 +25,7 @@ export default function ProjectedGoalsModal({
         {/* --- Header --- */}
         <div className="shrink-0 p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full text-blue-600 dark:text-blue-400">
+            <div className="bg-blue-100 dark:bg-green-900/30 p-2 rounded-full text-green-600 dark:text-green-400">
               <Target size={20} className="sm:w-6 sm:h-6" />
             </div>
             <div>
@@ -60,7 +60,7 @@ export default function ProjectedGoalsModal({
                 key={team.id}
                 className="group relative flex flex-col sm:grid sm:grid-cols-12 sm:gap-4 p-3 sm:px-4 sm:py-3 bg-white dark:bg-gray-800/50 sm:bg-transparent rounded-xl sm:rounded-none border sm:border-0 border-gray-100 dark:border-gray-700 sm:border-b sm:hover:bg-gray-50 dark:sm:hover:bg-gray-800/50 transition-colors"
               >
-                {/* 1. Team & Rank */}
+                {/* Team & Rank */}
                 <div className="flex items-center justify-between sm:justify-start sm:col-span-3 mb-3 sm:mb-0">
                   <div className="flex items-center gap-3">
                     <span className="flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gray-100 dark:bg-gray-700 text-[10px] sm:text-sm font-bold text-gray-500">
@@ -81,7 +81,7 @@ export default function ProjectedGoalsModal({
 
                   {/* Mobile Only: xG Score */}
                   <div className="sm:hidden flex flex-col items-end">
-                    <span className="text-lg font-black text-blue-600 dark:text-blue-400 leading-none">
+                    <span className="text-lg font-black text-green-600 dark:text-green-400 leading-none">
                       {totalXG.toFixed(1)}
                     </span>
                     <span className="text-[9px] text-gray-400 font-bold uppercase">
@@ -90,7 +90,7 @@ export default function ProjectedGoalsModal({
                   </div>
                 </div>
 
-                {/* 2. Fixtures (Projected Goals Boxes) */}
+                {/* Fixtures (Projected Goals Boxes) */}
                 <div className="sm:col-span-7">
                   <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
                     {matchDetails.map((match, i) => (
@@ -100,15 +100,37 @@ export default function ProjectedGoalsModal({
                           match.projectedGoals
                         )} shadow-sm sm:w-14 transition-transform sm:hover:scale-105`}
                       >
-                        <span className="text-[9px] sm:text-[10px] font-bold uppercase truncate max-w-full px-0.5">
-                          {match.opponent?.short_name}
-                        </span>
-                        <span className="hidden sm:block text-[9px] opacity-80 leading-none mb-0.5">
-                          {match.isHome ? "(H)" : "(A)"}
-                        </span>
-                        <span className="sm:hidden text-[8px] opacity-70 leading-none -mt-0.5 mb-0.5">
-                          {match.isHome ? "H" : "A"}
-                        </span>
+                        {match.isDgw ? (
+                          /* --- DGW VIEW --- */
+                          <>
+                            <span className="text-[9px] sm:text-[10px] font-black uppercase text-fuchsia-600 dark:text-fuchsia-400 tracking-tighter">
+                              DGW
+                            </span>
+                            {/* Spacer to keep alignment with single GW boxes */}
+                            <span className="h-2.25 sm:h-2.5 mb-0.5"></span>
+                          </>
+                        ) : (
+                          /* --- SINGLE GW VIEW --- */
+                          <>
+                            <span className="text-[9px] sm:text-[10px] font-bold uppercase truncate max-w-full px-0.5">
+                              {match.opponent?.short_name || "-"}
+                            </span>
+                            {/* Desktop H/A */}
+                            <span className="hidden sm:block text-[9px] opacity-80 leading-none mb-0.5">
+                              {match.isBlank
+                                ? "-"
+                                : match.isHome
+                                ? "(H)"
+                                : "(A)"}
+                            </span>
+                            {/* Mobile H/A */}
+                            <span className="sm:hidden text-[8px] opacity-70 leading-none -mt-0.5 mb-0.5">
+                              {match.isBlank ? "-" : match.isHome ? "H" : "A"}
+                            </span>
+                          </>
+                        )}
+
+                        {/* Projection Score */}
                         <span className="text-[10px] sm:text-xs font-black">
                           {match.projectedGoals.toFixed(1)}
                         </span>
@@ -117,10 +139,10 @@ export default function ProjectedGoalsModal({
                   </div>
                 </div>
 
-                {/* 3. Desktop Only: Total xG */}
+                {/* Desktop Only: Total xG */}
                 <div className="hidden sm:flex sm:col-span-2 items-center justify-center">
                   <div className="flex flex-col items-center">
-                    <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                    <span className="text-2xl font-black text-green-600 dark:text-green-400">
                       {totalXG.toFixed(2)}
                     </span>
                     <span className="text-[10px] text-gray-400 uppercase font-bold">
