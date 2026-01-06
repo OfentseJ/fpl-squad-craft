@@ -154,26 +154,40 @@ export default function Planner({ data }) {
   // --- NAVIGATION SNAPSHOT LOGIC ---
   useEffect(() => {
     if (!isSaved) return;
-
     if (viewingGw === currentActualGw) {
-      if (baseSquad.length > 0) setSquad(baseSquad);
+      if (baseSquad.length > 0) {
+        setSquad(baseSquad);
+      }
       return;
     }
 
     if (plannedSquads[viewingGw]) {
-      setSquad(plannedSquads[viewingGw]);
+      const savedData = plannedSquads[viewingGw];
+
+      if (Array.isArray(savedData)) {
+        setSquad(savedData);
+      } else {
+        setSquad(savedData.squad);
+        setBank(savedData.bank);
+      }
       return;
     }
-
     let sourceSquad = null;
+    let sourceBank = bank;
 
     for (let i = viewingGw - 1; i >= currentActualGw; i--) {
       if (i === currentActualGw) {
         sourceSquad = baseSquad;
         break;
       }
-      if (plannedSquads[i] && plannedSquads[i].length > 0) {
-        sourceSquad = plannedSquads[i];
+      if (plannedSquads[i]) {
+        const prevData = plannedSquads[i];
+        if (Array.isArray(prevData)) {
+          sourceSquad = prevData;
+        } else {
+          sourceSquad = prevData.squad;
+          sourceBank = prevData.bank;
+        }
         break;
       }
     }
@@ -182,14 +196,14 @@ export default function Planner({ data }) {
       const clonedSquad = JSON.parse(JSON.stringify(sourceSquad));
 
       setSquad(clonedSquad);
-
+      setBank(sourceBank);
       setPlannedSquads((prev) => ({
         ...prev,
-        [viewingGw]: clonedSquad,
+        [viewingGw]: { squad: clonedSquad, bank: sourceBank },
       }));
     }
   }, [viewingGw, currentActualGw, isSaved, baseSquad]);
-  // --- STORAGE SYNC EFFECT ---
+
   useEffect(() => {
     localStorage.setItem("fpl_planner_bank", bank);
   }, [bank]);
@@ -202,14 +216,17 @@ export default function Planner({ data }) {
     } else {
       setPlannedSquads((prev) => ({
         ...prev,
-        [viewingGw]: newSquad,
+        [viewingGw]: {
+          squad: newSquad,
+          bank: bank,
+        },
       }));
     }
   };
 
   // --- RESTRICTION LOGIC ---
   const ensurePlanningMode = () => {
-    if (baseSquad.length === 0) return true; // Manual mode exception
+    if (baseSquad.length === 0) return true;
 
     if (viewingGw === currentActualGw) {
       const confirmSwitch = window.confirm(
@@ -385,7 +402,7 @@ export default function Planner({ data }) {
         ? oldPlayer.selling_price
         : oldPlayer.now_cost;
     const buyPrice = newPlayer.now_cost;
-    const priceDiff = sellingPrice - buyPrice;
+    const priceDiff = sellingPrice - buyPrice; // e.g., +0.5 or -0.2
     const newBank = bank + priceDiff;
 
     if (newBank < 0) {
@@ -417,13 +434,30 @@ export default function Planner({ data }) {
     setSquad(updatedVisualSquad);
     setBank(newBank);
     setTransferSource(null);
-
     setPlannedSquads((prev) => {
       const nextState = { ...prev };
-      nextState[viewingGw] = updatedVisualSquad;
-      Object.keys(nextState).forEach((gw) => {
-        if (parseInt(gw) > viewingGw) {
-          nextState[gw] = performSwap(nextState[gw]);
+      nextState[viewingGw] = {
+        squad: updatedVisualSquad,
+        bank: newBank,
+      };
+      Object.keys(nextState).forEach((gwKey) => {
+        const gwId = parseInt(gwKey);
+        if (gwId > viewingGw) {
+          const futureWeekData = nextState[gwId];
+
+          const futureSquad = Array.isArray(futureWeekData)
+            ? futureWeekData
+            : futureWeekData.squad;
+          const futureBank = Array.isArray(futureWeekData)
+            ? bank
+            : futureWeekData.bank;
+          const updatedFutureSquad = performSwap(futureSquad);
+          const updatedFutureBank = futureBank + priceDiff;
+
+          nextState[gwId] = {
+            squad: updatedFutureSquad,
+            bank: updatedFutureBank,
+          };
         }
       });
       return nextState;
