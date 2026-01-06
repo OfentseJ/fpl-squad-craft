@@ -35,7 +35,6 @@ export default function PlayerDetailModal({
 }) {
   const { getPlayerImageUrl, getTeamBadgeUrl, getPlayerHistory } = useFPLApi();
 
-  // --- NEW STATE ---
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState("fixtures");
   const [historyData, setHistoryData] = useState(null);
@@ -49,6 +48,7 @@ export default function PlayerDetailModal({
   };
 
   const team = player.teams?.find((t) => t.id === player.team);
+  const playerBadge = getTeamBadgeUrl(team?.code); // Player's team badge
 
   // --- Injury / Availability Logic ---
   const chance = player.chance_of_playing_next_round;
@@ -93,18 +93,17 @@ export default function PlayerDetailModal({
     };
   });
 
-  // --- History Fetch Logic (Lazy Load) ---
+  // --- History Fetch Logic ---
   useEffect(() => {
     if (isExpanded && activeTab === "history" && !historyData) {
       setLoadingHistory(true);
-
       getPlayerHistory(player.id)
         .then((data) => {
-          setHistoryData(data);
+          if (data) setHistoryData(data);
           setLoadingHistory(false);
         })
         .catch((err) => {
-          console.error("Failed to load history:", err);
+          console.error(err);
           setLoadingHistory(false);
         });
     }
@@ -112,13 +111,11 @@ export default function PlayerDetailModal({
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-fadeIn transition-opacity"
         onClick={onClose}
       />
 
-      {/* Modal Slide-over */}
       <div className="fixed right-0 top-0 bottom-0 w-full sm:w-125 bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col animate-slideInRight border-l border-gray-200 dark:border-gray-800">
         {/* --- HEADER --- */}
         <div className="relative h-48 bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden shrink-0">
@@ -151,7 +148,7 @@ export default function PlayerDetailModal({
             <div className="relative mb-2">
               <div className="absolute inset-0 bg-white/20 blur-xl rounded-full"></div>
               <img
-                src={getTeamBadgeUrl(team?.code)}
+                src={playerBadge}
                 alt="Badge"
                 className="relative w-10 h-10 object-contain"
               />
@@ -170,7 +167,7 @@ export default function PlayerDetailModal({
         {/* --- SCROLLABLE CONTENT --- */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900">
           <div className="p-5 space-y-5">
-            {/* 1. Injury Banner */}
+            {/* Injury Banner */}
             {isInjured && player.news && (
               <div
                 className={`rounded-xl p-3 border flex gap-3 items-start shadow-sm ${injuryStyles.bg} ${injuryStyles.border}`}
@@ -194,7 +191,7 @@ export default function PlayerDetailModal({
               </div>
             )}
 
-            {/* 2. Key Stats Grid */}
+            {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-3">
               <StatBox
                 label="Price"
@@ -216,7 +213,7 @@ export default function PlayerDetailModal({
               />
             </div>
 
-            {/* 3. Summary Ticker (Hidden if expanded) */}
+            {/* Summary Ticker */}
             {!isExpanded && (
               <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -249,7 +246,7 @@ export default function PlayerDetailModal({
               </div>
             )}
 
-            {/* 4. EXPANDABLE SECTION */}
+            {/* EXPANDABLE SECTION */}
             <div className="border-t border-gray-100 dark:border-gray-800 pt-2">
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -268,7 +265,7 @@ export default function PlayerDetailModal({
 
               {isExpanded && (
                 <div className="mt-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                  {/* TABS */}
+                  {/* Tabs */}
                   <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg mb-4">
                     <button
                       onClick={() => setActiveTab("fixtures")}
@@ -292,10 +289,10 @@ export default function PlayerDetailModal({
                     </button>
                   </div>
 
-                  {/* TAB CONTENT */}
                   <div className="min-h-50">
+                    {/* Fixtures List */}
                     {activeTab === "fixtures" && (
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         {allFixtures.map((f, i) => {
                           const isHome = f.team_h === player.team;
                           const opponentId = isHome ? f.team_a : f.team_h;
@@ -309,27 +306,29 @@ export default function PlayerDetailModal({
                           return (
                             <div
                               key={i}
-                              className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors border-b border-gray-100 dark:border-gray-800 last:border-0"
+                              className="flex items-center justify-between p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors border border-gray-100 dark:border-gray-800 shadow-sm"
                             >
                               <div className="flex items-center gap-3">
-                                <span className="text-xs font-bold text-gray-400 w-8">
+                                <span className="text-xs font-bold text-gray-400 w-8 text-center">
                                   GW{f.event}
                                 </span>
                                 <div className="flex items-center gap-2">
                                   <img
                                     src={getTeamBadgeUrl(opponent?.code)}
-                                    className="w-5 h-5"
+                                    className="w-6 h-6 object-contain"
                                   />
-                                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                                    {opponent?.name}
-                                  </span>
-                                  <span className="text-[10px] text-gray-400">
-                                    ({isHome ? "H" : "A"})
-                                  </span>
+                                  <div>
+                                    <div className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-none">
+                                      {opponent?.name || "TBC"}
+                                    </div>
+                                    <span className="text-[10px] text-gray-400 font-medium">
+                                      {isHome ? "Home" : "Away"}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                               <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded text-white ${getFDRClass(
+                                className={`text-xs font-bold px-3 py-1 rounded-md text-white shadow-sm ${getFDRClass(
                                   difficulty
                                 )}`}
                               >
@@ -341,6 +340,7 @@ export default function PlayerDetailModal({
                       </div>
                     )}
 
+                    {/* History List */}
                     {activeTab === "history" && (
                       <>
                         {loadingHistory ? (
@@ -353,41 +353,106 @@ export default function PlayerDetailModal({
                             {historyData.history
                               .slice()
                               .reverse()
-                              .map((match, i) => (
-                                <div
-                                  key={i}
-                                  className="grid grid-cols-12 gap-1 items-center p-2 text-xs border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                >
-                                  <div className="col-span-2 font-bold text-gray-400">
-                                    GW{match.round}
+                              .map((match, i) => {
+                                const opponent = player.teams?.find(
+                                  (t) => t.id === match.opponent_team
+                                );
+                                const opponentBadge = getTeamBadgeUrl(
+                                  opponent?.code
+                                );
+
+                                // Determine Home/Away Logic
+                                const isPlayerHome = match.was_home;
+
+                                // 1. Identify which badge/name goes where
+                                const homeBadge = isPlayerHome
+                                  ? playerBadge
+                                  : opponentBadge;
+                                const awayBadge = isPlayerHome
+                                  ? opponentBadge
+                                  : playerBadge;
+
+                                const homeShortName = isPlayerHome
+                                  ? team?.short_name
+                                  : opponent?.short_name;
+                                const awayShortName = isPlayerHome
+                                  ? opponent?.short_name
+                                  : team?.short_name;
+
+                                // 2. Score Format: Home - Away
+                                const homeTeamScore = match.team_h_score
+                                  ? match.team_h_score
+                                  : 0;
+                                const awayTeamScore = match.team_a_score
+                                  ? match.team_a_score
+                                  : 0;
+
+                                const score = `${homeTeamScore}-${awayTeamScore}`;
+
+                                return (
+                                  <div
+                                    key={i}
+                                    className="grid grid-cols-12 gap-1 items-center p-2 text-xs border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                  >
+                                    {/* GW Number */}
+                                    <div className="col-span-2 font-bold text-gray-400">
+                                      GW{match.round}
+                                    </div>
+
+                                    {/* Match Display */}
+                                    <div className="col-span-6 flex items-center justify-start">
+                                      {/* HOME TEAM (Left) */}
+                                      <div className="flex flex-col items-center w-8">
+                                        <img
+                                          src={homeBadge}
+                                          className="w-5 h-5 object-contain mb-0.5"
+                                          alt="Home"
+                                        />
+                                        <span className="text-[9px] text-gray-400 font-bold">
+                                          {homeShortName}
+                                        </span>
+                                      </div>
+
+                                      {/* SCORE (Center) */}
+                                      <div className="px-2 font-black text-gray-700 dark:text-gray-200 min-w-8 text-center">
+                                        {score}
+                                      </div>
+
+                                      {/* AWAY TEAM (Right) */}
+                                      <div className="flex flex-col items-center w-8">
+                                        <img
+                                          src={awayBadge}
+                                          className="w-5 h-5 object-contain mb-0.5"
+                                          alt="Away"
+                                        />
+                                        <span className="text-[9px] text-gray-400 font-bold">
+                                          {awayShortName}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Minutes */}
+                                    <div className="col-span-2 text-center text-gray-500">
+                                      {match.minutes}'
+                                    </div>
+
+                                    {/* Points */}
+                                    <div className="col-span-2 text-right font-black">
+                                      <span
+                                        className={`${
+                                          match.total_points >= 8
+                                            ? "text-green-600 dark:text-green-400"
+                                            : match.total_points >= 5
+                                            ? "text-blue-500 dark:text-blue-400"
+                                            : "text-gray-800 dark:text-gray-200"
+                                        }`}
+                                      >
+                                        {match.total_points}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="col-span-5 flex flex-col">
-                                    <span className="font-bold truncate">
-                                      vs Team {match.opponent_team}
-                                    </span>
-                                    <span className="text-[10px] text-gray-400">
-                                      {match.was_home ? "H" : "A"} (
-                                      {match.team_h_score}-{match.team_a_score})
-                                    </span>
-                                  </div>
-                                  <div className="col-span-2 text-center text-gray-500">
-                                    {match.minutes}'
-                                  </div>
-                                  <div className="col-span-3 text-right font-black">
-                                    <span
-                                      className={`${
-                                        match.total_points >= 8
-                                          ? "text-green-600"
-                                          : match.total_points >= 5
-                                          ? "text-blue-500"
-                                          : ""
-                                      }`}
-                                    >
-                                      {match.total_points} pts
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                           </div>
                         ) : (
                           <div className="text-center py-8 text-xs text-gray-400">
@@ -401,12 +466,9 @@ export default function PlayerDetailModal({
               )}
             </div>
 
-            {/* 5. Captaincy (Condensed) */}
+            {/* Captaincy */}
             {inSquad && !isBench && (
               <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  Captaincy
-                </h3>
                 <div className="grid grid-cols-2 gap-2">
                   <CaptainButton
                     isActive={isCaptain}
@@ -417,7 +479,7 @@ export default function PlayerDetailModal({
                   <CaptainButton
                     isActive={isViceCaptain}
                     onClick={() => onSetViceCaptain(player.id)}
-                    label="Vice"
+                    label="Vice - Captain"
                     type="V"
                   />
                 </div>
@@ -432,7 +494,7 @@ export default function PlayerDetailModal({
           </div>
         </div>
 
-        {/* --- FOOTER ACTIONS --- */}
+        {/* Footer */}
         {inSquad ? (
           <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
             {isSavedState ? (
@@ -483,8 +545,7 @@ export default function PlayerDetailModal({
   );
 }
 
-// --- SMALLER SUB-COMPONENTS ---
-
+// Sub-components
 function StatBox({ label, value, icon, color }) {
   return (
     <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl text-center border border-gray-100 dark:border-gray-700 shadow-sm">

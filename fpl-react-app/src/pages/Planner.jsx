@@ -604,7 +604,6 @@ export default function Planner({ data }) {
       return p;
     });
     updateSquadState(newSquad);
-    setSelectedPlayer(null);
   };
 
   const handleSetViceCaptain = (playerId) => {
@@ -624,7 +623,6 @@ export default function Planner({ data }) {
       return p;
     });
     updateSquadState(newSquad);
-    setSelectedPlayer(null);
   };
 
   const handleUpdateBank = (newValue) => {
@@ -1103,8 +1101,12 @@ export default function Planner({ data }) {
                 ? squad.some((p) => p.id === selectedPlayer.id)
                 : false
             }
-            isCaptain={selectedPlayer.is_captain}
-            isViceCaptain={selectedPlayer.is_vice_captain}
+            isCaptain={
+              squad.find((p) => p.id === selectedPlayer.id)?.is_captain
+            }
+            isViceCaptain={
+              squad.find((p) => p.id === selectedPlayer.id)?.is_vice_captain
+            }
             onSetCaptain={handleSetCaptain}
             onSetViceCaptain={handleSetViceCaptain}
             onTransfer={handleTransferStart}
