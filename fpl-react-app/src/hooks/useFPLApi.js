@@ -139,6 +139,16 @@ export function useFPLApi() {
     [CORS_PROXY]
   );
 
+  // --- NEW FUNCTION ADDED HERE ---
+  const getPlayerHistory = useCallback(
+    (playerId) =>
+      fetchWithCache(
+        `player-history-${playerId}`,
+        `https://fantasy.premierleague.com/api/element-summary/${playerId}/`
+      ),
+    [fetchWithCache]
+  );
+
   return {
     getBootstrap,
     getLive,
@@ -149,5 +159,6 @@ export function useFPLApi() {
     importUserTeam,
     getUserTeamInfo,
     getEntryHistory,
+    getPlayerHistory,
   };
 }
