@@ -151,41 +151,30 @@ export default function Pitch({
   }, [squad, substitutionSource]);
 
   const { pitchRows, benchPlayers } = useMemo(() => {
-    const gk = squad.filter((p) => p.element_type === 1);
-    const def = squad.filter((p) => p.element_type === 2);
-    const mid = squad.filter((p) => p.element_type === 3);
-    const fwd = squad.filter((p) => p.element_type === 4);
-
-    if (!saved) {
-      return {
-        pitchRows: [
-          { type: 1, players: [...gk, ...Array(2 - gk.length).fill(null)] },
-          { type: 2, players: [...def, ...Array(5 - def.length).fill(null)] },
-          { type: 3, players: [...mid, ...Array(5 - mid.length).fill(null)] },
-          { type: 4, players: [...fwd, ...Array(3 - fwd.length).fill(null)] },
-        ],
-        benchPlayers: [],
-      };
-    } else {
-      const starters = squad.slice(0, 11);
-      const subs = squad.slice(11, 15);
-
-      const startGK = starters.filter((p) => p.element_type === 1);
-      const startDEF = starters.filter((p) => p.element_type === 2);
-      const startMID = starters.filter((p) => p.element_type === 3);
-      const startFWD = starters.filter((p) => p.element_type === 4);
-
-      return {
-        pitchRows: [
-          { type: 1, players: startGK },
-          { type: 2, players: startDEF },
-          { type: 3, players: startMID },
-          { type: 4, players: startFWD },
-        ],
-        benchPlayers: subs,
-      };
+    if (!squad || squad.length < 15) {
+      return { pitchRows: [], benchPlayers: [] };
     }
-  }, [squad, saved]);
+
+    const starters = squad.slice(0, 11);
+    const bench = squad.slice(11, 15);
+
+    // Since 'starters' contains both Players and Placeholders,
+    // we just filter by element_type.
+    const startGK = starters.filter((p) => p.element_type === 1);
+    const startDEF = starters.filter((p) => p.element_type === 2);
+    const startMID = starters.filter((p) => p.element_type === 3);
+    const startFWD = starters.filter((p) => p.element_type === 4);
+
+    return {
+      pitchRows: [
+        { type: 1, players: startGK },
+        { type: 2, players: startDEF },
+        { type: 3, players: startMID },
+        { type: 4, players: startFWD },
+      ],
+      benchPlayers: bench,
+    };
+  }, [squad]);
 
   const renderRow = (rowObj, rowIndex) => {
     return rowObj.players.map((p, i) => {
