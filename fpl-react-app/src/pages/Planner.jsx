@@ -252,19 +252,101 @@ export default function Planner({ data }) {
   }, [bank]);
 
   // --- Update State Wrapper ---
-  const updateSquadState = (newSquad) => {
+  const updateSquadState = (newSquad, newBank = null) => {
+    // 1. Update Local View
     setSquad(newSquad);
+
+    // Use the provided newBank or fall back to current state (which might be stale, so prefer passing it)
+    const activeBank = newBank !== null ? newBank : bank;
+
+    // 2. Define the "Source of Truth" for the ripple
+    // We compare newSquad against the 'squad' state (which is now the "Old State")
+    const oldSquad = squad;
+
+    // 3. Update the Current GW Storage
     if (viewingGw === currentActualGw) {
       setBaseSquad(newSquad);
-    } else {
-      setPlannedSquads((prev) => ({
-        ...prev,
-        [viewingGw]: {
-          squad: newSquad,
-          bank: bank,
-        },
-      }));
     }
+
+    setPlannedSquads((prev) => {
+      const nextPlanned = { ...prev };
+
+      // Update the CURRENT planned week
+      nextPlanned[viewingGw] = {
+        squad: newSquad,
+        bank: activeBank,
+      };
+
+      // 4. THE RIPPLE LOOP
+      // Propagate changes to all FUTURE planned gameweeks
+      const maxGw = 38;
+
+      // We carry the 'current' bank forward as we ripple
+      let runningBank = activeBank;
+
+      for (let gw = viewingGw + 1; gw <= maxGw; gw++) {
+        // If this future GW hasn't been initialized yet, stop rippling
+        if (!nextPlanned[gw]) break;
+
+        const futureData = nextPlanned[gw];
+        const futureSquad = Array.isArray(futureData)
+          ? futureData
+          : futureData.squad;
+        // If the future week has its own bank value, we might need to adjust it relative to our change
+        // For simplicity: if we changed bank NOW, we apply the difference to future.
+        const oldBank = Array.isArray(futureData)
+          ? runningBank
+          : futureData.bank;
+
+        // Calculate the difference caused by our current move (e.g., -5.0m or +2.0m)
+        const bankDelta = activeBank - bank;
+
+        // Map the future squad based on our new changes
+        const updatedFutureSquad = futureSquad.map((futurePlayer, index) => {
+          const newPlayer = newSquad[index]; // The player currently in this slot (post-edit)
+          const oldPlayer = oldSquad[index]; // The player previously in this slot (pre-edit)
+
+          // CASE A: We swapped positions (Starters/Bench) or Captaincy
+          // If the player IDs match, strictly sync the "Status"
+          if (futurePlayer.id === newPlayer.id) {
+            return {
+              ...futurePlayer,
+              starting: newPlayer.starting,
+              is_captain: newPlayer.is_captain,
+              is_vice_captain: newPlayer.is_vice_captain,
+              // Keep futurePlayer specific data (like fixtures) intact
+            };
+          }
+
+          // CASE B: We made a Transfer (ID changed in this slot)
+          // If the future slot was identical to the old slot (meaning it was just inheriting),
+          // we should ripple the new transfer forward.
+          // BUT if the future slot is DIFFERENT from the old slot (meaning user made a transfer in future),
+          // we leave it alone.
+          const isSlotInherited = futurePlayer.id === oldPlayer.id; // OR both are placeholders
+
+          if (isSlotInherited) {
+            // Future was just copying us, so update it to our new reality
+            return newPlayer;
+          }
+
+          // CASE C: Future slot has diverged (Specific future plan). Keep it.
+          return futurePlayer;
+        });
+
+        // Update the future week
+        nextPlanned[gw] = {
+          squad: updatedFutureSquad,
+          // Apply the delta to the future bank (preserving future trades)
+          bank: oldBank + bankDelta,
+        };
+
+        // Update running bank for next iteration if needed
+        runningBank = nextPlanned[gw].bank;
+      }
+
+      return nextPlanned;
+    });
   };
 
   // --- RESTRICTION LOGIC ---
@@ -339,9 +421,10 @@ export default function Planner({ data }) {
       is_vice_captain: false,
       is_placeholder: false,
     };
+    const newBank = bank - player.now_cost;
 
-    setBank((prev) => prev - player.now_cost);
-    updateSquadState(newSquad);
+    setBank(newBank);
+    updateSquadState(newSquad, newBank);
   };
 
   const removePlayer = (playerId) => {
@@ -351,6 +434,7 @@ export default function Planner({ data }) {
 
     const playerToRemove = squad[playerIndex];
     const refund = playerToRemove.selling_price || playerToRemove.now_cost;
+    const newBank = bank + refund;
     const placeholder = createPlaceholder(
       playerIndex,
       playerToRemove.element_type
@@ -358,8 +442,8 @@ export default function Planner({ data }) {
     const newSquad = [...squad];
     newSquad[playerIndex] = placeholder;
 
-    setBank((prev) => prev + refund);
-    updateSquadState(newSquad);
+    setBank(newBank);
+    updateSquadState(newSquad, newBank);
     setIsSaved(false);
   };
 
