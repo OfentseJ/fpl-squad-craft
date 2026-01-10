@@ -285,9 +285,7 @@ export default function Pitch({
             </div>
             <div className="flex justify-center gap-2 sm:gap-4">
               {benchPlayers.map((p, i) => {
-                // ... map logic ...
-                // COPY PASTED from your previous code for brevity in display
-                // (Ensure renderRow/bench mapping logic matches your previous file)
+                const isRealPlayer = !p.is_placeholder;
                 let label = "SUB";
                 if (p) label = labelMap[p.element_type];
                 else if (i === 0) label = "GKP";
@@ -310,7 +308,7 @@ export default function Pitch({
                     <div className="text-[8px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
                       {label}
                     </div>
-                    {p ? (
+                    {isRealPlayer ? (
                       <div
                         className={`transition-all duration-300 ${
                           isSubSource
