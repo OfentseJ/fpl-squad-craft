@@ -155,6 +155,22 @@ export default function Pitch({
       return { pitchRows: [], benchPlayers: [] };
     }
 
+    if (!saved) {
+      const gks = squad.filter((p) => p.element_type === 1); // Should be 2
+      const defs = squad.filter((p) => p.element_type === 2); // Should be 5
+      const mids = squad.filter((p) => p.element_type === 3); // Should be 5
+      const fwds = squad.filter((p) => p.element_type === 4); // Should be 3
+
+      return {
+        pitchRows: [
+          { type: 1, players: gks },
+          { type: 2, players: defs },
+          { type: 3, players: mids },
+          { type: 4, players: fwds },
+        ],
+        benchPlayers: [],
+      };
+    }
     const starters = squad.slice(0, 11);
     const bench = squad.slice(11, 15);
 
@@ -177,6 +193,7 @@ export default function Pitch({
   }, [squad]);
 
   const renderRow = (rowObj, rowIndex) => {
+    if (!rowObj || !rowObj.players) return null;
     return rowObj.players.map((p, i) => {
       const key = p.id
         ? `player-${p.id}`

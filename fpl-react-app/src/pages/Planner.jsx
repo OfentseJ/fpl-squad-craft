@@ -599,7 +599,7 @@ export default function Planner({ data }) {
 
   const handleResetTeam = () => {
     if (window.confirm("Are you sure you want to clear your team?")) {
-      setSquad([]);
+      setSquad(generateEmptySquad());
       setIsSaved(false);
 
       setBank(1000);
@@ -726,6 +726,10 @@ export default function Planner({ data }) {
   if (!isStorageLoaded || !data) {
     return <LoadingSkeleton />;
   }
+
+  // Calculate how many REAL players we have
+  const realPlayerCount = squad.filter((p) => !p.is_placeholder).length;
+  const isSquadEmpty = squad.every((p) => p.is_placeholder);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
@@ -866,9 +870,9 @@ export default function Planner({ data }) {
               {!isSaved && (
                 <button
                   onClick={handleSaveTeam}
-                  disabled={squad.length < 15}
+                  disabled={realPlayerCount < 15}
                   className={`flex items-center gap-2 px-5 py-2 rounded-lg font-bold shadow-md transition-all ${
-                    squad.length === 15
+                    realPlayerCount === 15
                       ? "bg-green-600 hover:bg-green-700 text-white cursor-pointer hover:-translate-y-0.5"
                       : "bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
                   }`}
@@ -921,7 +925,7 @@ export default function Planner({ data }) {
             {/* FDR Button */}
             <div className="mt-8 text-center">
               {/* Import CTA */}
-              {squad.length === 0 && (
+              {isSquadEmpty && (
                 <button
                   onClick={() => setIsImportModalOpen(true)}
                   className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 px-6 py-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform"
