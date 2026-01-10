@@ -151,53 +151,62 @@ export default function Pitch({
   }, [squad, substitutionSource]);
 
   const { pitchRows, benchPlayers } = useMemo(() => {
-    const gk = squad.filter((p) => p.element_type === 1);
-    const def = squad.filter((p) => p.element_type === 2);
-    const mid = squad.filter((p) => p.element_type === 3);
-    const fwd = squad.filter((p) => p.element_type === 4);
+    if (!squad || squad.length < 15) {
+      return { pitchRows: [], benchPlayers: [] };
+    }
 
     if (!saved) {
+      const gks = squad.filter((p) => p.element_type === 1); // Should be 2
+      const defs = squad.filter((p) => p.element_type === 2); // Should be 5
+      const mids = squad.filter((p) => p.element_type === 3); // Should be 5
+      const fwds = squad.filter((p) => p.element_type === 4); // Should be 3
+
       return {
         pitchRows: [
-          { type: 1, players: [...gk, ...Array(2 - gk.length).fill(null)] },
-          { type: 2, players: [...def, ...Array(5 - def.length).fill(null)] },
-          { type: 3, players: [...mid, ...Array(5 - mid.length).fill(null)] },
-          { type: 4, players: [...fwd, ...Array(3 - fwd.length).fill(null)] },
+          { type: 1, players: gks },
+          { type: 2, players: defs },
+          { type: 3, players: mids },
+          { type: 4, players: fwds },
         ],
         benchPlayers: [],
       };
-    } else {
-      const starters = squad.slice(0, 11);
-      const subs = squad.slice(11, 15);
-
-      const startGK = starters.filter((p) => p.element_type === 1);
-      const startDEF = starters.filter((p) => p.element_type === 2);
-      const startMID = starters.filter((p) => p.element_type === 3);
-      const startFWD = starters.filter((p) => p.element_type === 4);
-
-      return {
-        pitchRows: [
-          { type: 1, players: startGK },
-          { type: 2, players: startDEF },
-          { type: 3, players: startMID },
-          { type: 4, players: startFWD },
-        ],
-        benchPlayers: subs,
-      };
     }
-  }, [squad, saved]);
+    const starters = squad.slice(0, 11);
+    const bench = squad.slice(11, 15);
+
+    // Since 'starters' contains both Players and Placeholders,
+    // we just filter by element_type.
+    const startGK = starters.filter((p) => p.element_type === 1);
+    const startDEF = starters.filter((p) => p.element_type === 2);
+    const startMID = starters.filter((p) => p.element_type === 3);
+    const startFWD = starters.filter((p) => p.element_type === 4);
+
+    return {
+      pitchRows: [
+        { type: 1, players: startGK },
+        { type: 2, players: startDEF },
+        { type: 3, players: startMID },
+        { type: 4, players: startFWD },
+      ],
+      benchPlayers: bench,
+    };
+  }, [squad]);
 
   const renderRow = (rowObj, rowIndex) => {
+    if (!rowObj || !rowObj.players) return null;
     return rowObj.players.map((p, i) => {
-      const key = p
+      const key = p.id
         ? `player-${p.id}`
         : `placeholder-${rowObj.type}-${rowIndex}-${i}`;
 
-      const isSubSource = substitutionSource === p?.id;
+      const isRealPlayer = !p.is_placeholder;
+
+      const isSubSource = substitutionSource === p.id;
       let isValidTarget = true;
 
+      // SUBSTITUTION LOGIC
       if (substitutionSource) {
-        if (!p) {
+        if (!isRealPlayer) {
           isValidTarget = false;
         } else if (p.id === substitutionSource) {
           isValidTarget = true;
@@ -208,7 +217,7 @@ export default function Pitch({
         }
       }
 
-      return p ? (
+      return isRealPlayer ? (
         <div
           key={key}
           className={`transition-all duration-300 ${
@@ -240,8 +249,8 @@ export default function Pitch({
       ) : (
         <Placeholder
           key={key}
-          position={labelMap[rowObj.type]}
-          onClick={() => onPlaceholderClick(rowObj.type)}
+          position={labelMap[p.element_type]}
+          onClick={() => onPlaceholderClick(p.element_type)}
           disabled={!!substitutionSource}
         />
       );
@@ -293,9 +302,7 @@ export default function Pitch({
             </div>
             <div className="flex justify-center gap-2 sm:gap-4">
               {benchPlayers.map((p, i) => {
-                // ... map logic ...
-                // COPY PASTED from your previous code for brevity in display
-                // (Ensure renderRow/bench mapping logic matches your previous file)
+                const isRealPlayer = !p.is_placeholder;
                 let label = "SUB";
                 if (p) label = labelMap[p.element_type];
                 else if (i === 0) label = "GKP";
@@ -318,7 +325,7 @@ export default function Pitch({
                     <div className="text-[8px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">
                       {label}
                     </div>
-                    {p ? (
+                    {isRealPlayer ? (
                       <div
                         className={`transition-all duration-300 ${
                           isSubSource

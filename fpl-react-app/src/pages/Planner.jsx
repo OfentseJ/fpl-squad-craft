@@ -32,6 +32,37 @@ import TeamValueEditModal from "../components/Planner/TeamValueEditModal";
 import CleanSheetModal from "../components/Planner/CleanSheetModal";
 import ProjectedGoalsModal from "../components/Planner/ProjectedGoalsModal";
 
+const createPlaceholder = (index, type) => ({
+  id: `placeholder-${index}-${Date.now()}`,
+  element_type: type,
+  web_name: "Empty",
+  now_cost: 0,
+  team: null,
+  is_placeholder: true,
+  position_index: index,
+});
+
+const generateEmptySquad = () => {
+  const positions = [
+    1, // 0: GKP (Starter)
+    2,
+    2,
+    2,
+    2, // 1-4: DEF (Starters)
+    3,
+    3,
+    3,
+    3, // 5-8: MID (Starters)
+    4,
+    4, // 9-10: FWD (Starters)
+    1, // 11: GKP (Bench)
+    2, // 12: DEF (Bench)
+    3, // 13: MID (Bench)
+    4, // 14: FWD (Bench)
+  ];
+  return positions.map((pos, i) => createPlaceholder(i, pos));
+};
+
 export default function Planner({ data }) {
   // --- HOOKS ---
   const {
@@ -50,7 +81,7 @@ export default function Planner({ data }) {
     useFPLApi();
 
   // --- LOCAL STATE ---
-  const [squad, setSquad] = useState([]);
+  const [squad, setSquad] = useState(generateEmptySquad());
   const [filteredPlayers, setFilteredPlayers] = useState([]);
   const [activeSortMetric, setActiveSortMetric] = useState("total_points");
 
@@ -58,7 +89,6 @@ export default function Planner({ data }) {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [substitutionSource, setSubstitutionSource] = useState(null);
-  const [transferSource, setTransferSource] = useState(null);
 
   const [view, setView] = useState("pitch");
   const [positionFilter, setPositionFilter] = useState("all");
@@ -98,11 +128,24 @@ export default function Planner({ data }) {
     }
   }, [data]);
 
+  const isDefaultSquad = (s) =>
+    s.length === 15 && s.every((p) => p.is_placeholder);
   useEffect(() => {
     if (!isStorageLoaded) return;
-    if (baseSquad.length > 0 && squad.length === 0) {
-      setSquad(baseSquad);
-      setIsSaved(true);
+    if (baseSquad.length > 0 && isDefaultSquad(squad)) {
+      let safeSquad = [...baseSquad];
+      if (safeSquad.length < 15) {
+        console.warn("Hydrating legacy squad format...");
+        const emptyTemplate = generateEmptySquad();
+        safeSquad = emptyTemplate.map((placeholder, i) => {
+          return safeSquad[i] || placeholder;
+        });
+      }
+
+      setSquad(safeSquad);
+
+      const realPlayerCount = safeSquad.filter((p) => !p.is_placeholder).length;
+      setIsSaved(realPlayerCount === 15);
     }
   }, [isStorageLoaded, baseSquad]);
 
@@ -209,19 +252,101 @@ export default function Planner({ data }) {
   }, [bank]);
 
   // --- Update State Wrapper ---
-  const updateSquadState = (newSquad) => {
+  const updateSquadState = (newSquad, newBank = null) => {
+    // 1. Update Local View
     setSquad(newSquad);
+
+    // Use the provided newBank or fall back to current state (which might be stale, so prefer passing it)
+    const activeBank = newBank !== null ? newBank : bank;
+
+    // 2. Define the "Source of Truth" for the ripple
+    // We compare newSquad against the 'squad' state (which is now the "Old State")
+    const oldSquad = squad;
+
+    // 3. Update the Current GW Storage
     if (viewingGw === currentActualGw) {
       setBaseSquad(newSquad);
-    } else {
-      setPlannedSquads((prev) => ({
-        ...prev,
-        [viewingGw]: {
-          squad: newSquad,
-          bank: bank,
-        },
-      }));
     }
+
+    setPlannedSquads((prev) => {
+      const nextPlanned = { ...prev };
+
+      // Update the CURRENT planned week
+      nextPlanned[viewingGw] = {
+        squad: newSquad,
+        bank: activeBank,
+      };
+
+      // 4. THE RIPPLE LOOP
+      // Propagate changes to all FUTURE planned gameweeks
+      const maxGw = 38;
+
+      // We carry the 'current' bank forward as we ripple
+      let runningBank = activeBank;
+
+      for (let gw = viewingGw + 1; gw <= maxGw; gw++) {
+        // If this future GW hasn't been initialized yet, stop rippling
+        if (!nextPlanned[gw]) break;
+
+        const futureData = nextPlanned[gw];
+        const futureSquad = Array.isArray(futureData)
+          ? futureData
+          : futureData.squad;
+        // If the future week has its own bank value, we might need to adjust it relative to our change
+        // For simplicity: if we changed bank NOW, we apply the difference to future.
+        const oldBank = Array.isArray(futureData)
+          ? runningBank
+          : futureData.bank;
+
+        // Calculate the difference caused by our current move (e.g., -5.0m or +2.0m)
+        const bankDelta = activeBank - bank;
+
+        // Map the future squad based on our new changes
+        const updatedFutureSquad = futureSquad.map((futurePlayer, index) => {
+          const newPlayer = newSquad[index]; // The player currently in this slot (post-edit)
+          const oldPlayer = oldSquad[index]; // The player previously in this slot (pre-edit)
+
+          // CASE A: We swapped positions (Starters/Bench) or Captaincy
+          // If the player IDs match, strictly sync the "Status"
+          if (futurePlayer.id === newPlayer.id) {
+            return {
+              ...futurePlayer,
+              starting: newPlayer.starting,
+              is_captain: newPlayer.is_captain,
+              is_vice_captain: newPlayer.is_vice_captain,
+              // Keep futurePlayer specific data (like fixtures) intact
+            };
+          }
+
+          // CASE B: We made a Transfer (ID changed in this slot)
+          // If the future slot was identical to the old slot (meaning it was just inheriting),
+          // we should ripple the new transfer forward.
+          // BUT if the future slot is DIFFERENT from the old slot (meaning user made a transfer in future),
+          // we leave it alone.
+          const isSlotInherited = futurePlayer.id === oldPlayer.id; // OR both are placeholders
+
+          if (isSlotInherited) {
+            // Future was just copying us, so update it to our new reality
+            return newPlayer;
+          }
+
+          // CASE C: Future slot has diverged (Specific future plan). Keep it.
+          return futurePlayer;
+        });
+
+        // Update the future week
+        nextPlanned[gw] = {
+          squad: updatedFutureSquad,
+          // Apply the delta to the future bank (preserving future trades)
+          bank: oldBank + bankDelta,
+        };
+
+        // Update running bank for next iteration if needed
+        runningBank = nextPlanned[gw].bank;
+      }
+
+      return nextPlanned;
+    });
   };
 
   // --- RESTRICTION LOGIC ---
@@ -242,47 +367,84 @@ export default function Planner({ data }) {
   };
 
   // --- EXISTING HELPERS ---
-  const isPositionFull = (elementType) => {
-    const count = squad.filter((p) => p.element_type === elementType).length;
-    if (elementType === 1) return count >= 2;
-    if (elementType === 2) return count >= 5;
-    if (elementType === 3) return count >= 5;
-    if (elementType === 4) return count >= 3;
-    return false;
-  };
-
   const isTeamFull = (teamId, ignorePlayerId = null) => {
     const relevantSquad = ignorePlayerId
       ? squad.filter((p) => p.id !== ignorePlayerId)
       : squad;
-    return relevantSquad.filter((p) => p.team === teamId).length >= 3;
+    return (
+      relevantSquad.filter((p) => !p.is_placeholder && p.team === teamId)
+        .length >= 3
+    );
   };
 
   // --- ACTIONS ---
   const addPlayer = (player) => {
     if (!ensurePlanningMode()) return;
-    if (squad.length >= 15) return alert("Your squad is full!");
-    if (isPositionFull(player.element_type)) return;
-    if (isTeamFull(player.team)) return;
 
     if (bank - player.now_cost < 0) {
-      alert("Not enough money in the bank!");
+      alert(
+        `Not enough money! You need £${((player.now_cost - bank) / 10).toFixed(
+          1
+        )}m more.`
+      );
       return;
     }
 
-    const newSquad = [
-      ...squad,
-      { ...player, starting: true, teams: data.teams },
-    ];
+    const emptySlotIndex = squad.findIndex(
+      (p) => p.is_placeholder && p.element_type === player.element_type
+    );
 
-    setBank((prev) => prev - player.now_cost);
-    updateSquadState(newSquad);
+    if (emptySlotIndex === -1) {
+      alert(
+        `No empty ${
+          player.element_type === 1
+            ? "GKP"
+            : player.element_type === 2
+            ? "DEF"
+            : player.element_type === 3
+            ? "MID"
+            : "FWD"
+        } slots! Click a player on the pitch to remove them first.`
+      );
+      return;
+    }
+
+    const newSquad = [...squad];
+
+    const isStarter = emptySlotIndex < 11;
+
+    newSquad[emptySlotIndex] = {
+      ...player,
+      starting: isStarter,
+      teams: data.teams,
+      is_captain: false,
+      is_vice_captain: false,
+      is_placeholder: false,
+    };
+    const newBank = bank - player.now_cost;
+
+    setBank(newBank);
+    updateSquadState(newSquad, newBank);
   };
 
   const removePlayer = (playerId) => {
     if (!ensurePlanningMode()) return;
-    const newSquad = squad.filter((p) => p.id !== playerId);
-    updateSquadState(newSquad);
+    const playerIndex = squad.findIndex((p) => p.id == playerId);
+    if (playerIndex === -1) return;
+
+    const playerToRemove = squad[playerIndex];
+    const refund = playerToRemove.selling_price || playerToRemove.now_cost;
+    const newBank = bank + refund;
+    const placeholder = createPlaceholder(
+      playerIndex,
+      playerToRemove.element_type
+    );
+    const newSquad = [...squad];
+    newSquad[playerIndex] = placeholder;
+
+    setBank(newBank);
+    updateSquadState(newSquad, newBank);
+    setIsSaved(false);
   };
 
   const handlePlaceholderClick = (positionId) => {
@@ -370,104 +532,6 @@ export default function Planner({ data }) {
     setSubstitutionSource(null);
   };
 
-  // --- TRANSFERS ---
-  const handleTransferStart = (playerId) => {
-    if (!ensurePlanningMode()) return;
-    const playerToTransfer = squad.find((p) => p.id === playerId);
-    if (!playerToTransfer) return;
-    setTransferSource(playerId);
-    setPositionFilter(playerToTransfer.element_type);
-    const listElement = document.getElementById("player-list-section");
-    if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const handleTransferComplete = (newPlayer) => {
-    if (!transferSource) return;
-
-    const oldPlayerIndex = squad.findIndex((p) => p.id === transferSource);
-    if (oldPlayerIndex === -1) return;
-    const oldPlayer = squad[oldPlayerIndex];
-
-    if (oldPlayer.element_type !== newPlayer.element_type) {
-      alert("Position mismatch.");
-      return;
-    }
-    if (isTeamFull(newPlayer.team, transferSource)) {
-      alert("Team limit reached.");
-      return;
-    }
-
-    const sellingPrice =
-      oldPlayer.selling_price !== undefined
-        ? oldPlayer.selling_price
-        : oldPlayer.now_cost;
-    const buyPrice = newPlayer.now_cost;
-    const priceDiff = sellingPrice - buyPrice; // e.g., +0.5 or -0.2
-    const newBank = bank + priceDiff;
-
-    if (newBank < 0) {
-      alert(
-        `Insufficient funds! You need £${Math.abs(newBank / 10).toFixed(
-          1
-        )}m more.`
-      );
-      return;
-    }
-
-    const performSwap = (list) => {
-      const newList = [...list];
-      const idx = newList.findIndex((p) => p.id === oldPlayer.id);
-      if (idx !== -1) {
-        newList[idx] = {
-          ...newPlayer,
-          starting: newList[idx].starting,
-          teams: data.teams,
-          is_captain: false,
-          is_vice_captain: false,
-        };
-      }
-      return newList;
-    };
-
-    const updatedVisualSquad = performSwap(squad);
-
-    setSquad(updatedVisualSquad);
-    setBank(newBank);
-    setTransferSource(null);
-    setPlannedSquads((prev) => {
-      const nextState = { ...prev };
-      nextState[viewingGw] = {
-        squad: updatedVisualSquad,
-        bank: newBank,
-      };
-      Object.keys(nextState).forEach((gwKey) => {
-        const gwId = parseInt(gwKey);
-        if (gwId > viewingGw) {
-          const futureWeekData = nextState[gwId];
-
-          const futureSquad = Array.isArray(futureWeekData)
-            ? futureWeekData
-            : futureWeekData.squad;
-          const futureBank = Array.isArray(futureWeekData)
-            ? bank
-            : futureWeekData.bank;
-          const updatedFutureSquad = performSwap(futureSquad);
-          const updatedFutureBank = futureBank + priceDiff;
-
-          nextState[gwId] = {
-            squad: updatedFutureSquad,
-            bank: updatedFutureBank,
-          };
-        }
-      });
-      return nextState;
-    });
-  };
-
-  const handleCancelTransfer = () => {
-    setTransferSource(null);
-  };
-
   // --- SAVE / IMPORT ---
   const handleSaveTeam = () => {
     if (squad.length < 15) {
@@ -519,13 +583,12 @@ export default function Planner({ data }) {
 
   const handleResetTeam = () => {
     if (window.confirm("Are you sure you want to clear your team?")) {
-      setSquad([]);
+      setSquad(generateEmptySquad());
       setIsSaved(false);
 
       setBank(1000);
 
       setSubstitutionSource(null);
-      setTransferSource(null);
       clearStorage();
       setViewingGw(currentActualGw + 1);
     }
@@ -541,33 +604,34 @@ export default function Planner({ data }) {
 
       if (!picks || picks.length === 0) throw new Error("No players found.");
 
-      const importedSquad = picks
-        .map((pick) => {
-          const playerDetails = data.elements.find(
-            (e) => e.id === pick.element
-          );
-          if (!playerDetails) return null;
-          return {
+      const organizedSquad = generateEmptySquad();
+
+      picks.forEach((pick, i) => {
+        if (i >= 15) return;
+
+        const playerDetails = data.elements.find((e) => e.id === pick.element);
+        if (playerDetails) {
+          organizedSquad[i] = {
             ...playerDetails,
             teams: data.teams,
             is_captain: pick.is_captain,
             is_vice_captain: pick.is_vice_captain,
+            selling_price: pick.selling_price,
+            is_placeholder: false,
+            starting: i < 11,
           };
-        })
-        .filter(Boolean);
+        }
+      });
 
-      if (importedSquad.length < 15) throw new Error("Incomplete squad.");
-
-      setSquad(importedSquad);
+      setSquad(organizedSquad);
       setTeamInfo(info);
-      setBank(info.last_deadline_bank || 0);
-      setManualTeamValue(null);
-      setIsSaved(true);
-      setView("pitch");
 
-      // Sync with storage
-      setBaseSquad(importedSquad);
-      saveImportedSquad(importedSquad, info);
+      setBank(info.last_deadline_bank || 0);
+
+      setIsSaved(true);
+
+      setBaseSquad(organizedSquad);
+      saveImportedSquad(organizedSquad, info);
 
       return true;
     } catch (err) {
@@ -645,6 +709,10 @@ export default function Planner({ data }) {
   if (!isStorageLoaded || !data) {
     return <LoadingSkeleton />;
   }
+
+  // Calculate how many REAL players we have
+  const realPlayerCount = squad.filter((p) => !p.is_placeholder).length;
+  const isSquadEmpty = squad.every((p) => p.is_placeholder);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
@@ -785,9 +853,9 @@ export default function Planner({ data }) {
               {!isSaved && (
                 <button
                   onClick={handleSaveTeam}
-                  disabled={squad.length < 15}
+                  disabled={realPlayerCount < 15}
                   className={`flex items-center gap-2 px-5 py-2 rounded-lg font-bold shadow-md transition-all ${
-                    squad.length === 15
+                    realPlayerCount === 15
                       ? "bg-green-600 hover:bg-green-700 text-white cursor-pointer hover:-translate-y-0.5"
                       : "bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
                   }`}
@@ -803,11 +871,9 @@ export default function Planner({ data }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 relative items-start">
           {/* LEFT COL: PITCH (Span 8) */}
           <div
-            className={`lg:col-span-7 order-1 relative transition-all duration-300 ${
-              transferSource
-                ? "opacity-40 pointer-events-none grayscale blur-sm"
-                : "opacity-100"
-            }`}
+            className={
+              "lg:col-span-7 order-1 relative transition-all duration-300 "
+            }
           >
             {view === "pitch" ? (
               <Pitch
@@ -840,7 +906,7 @@ export default function Planner({ data }) {
             {/* FDR Button */}
             <div className="mt-8 text-center">
               {/* Import CTA */}
-              {squad.length === 0 && (
+              {isSquadEmpty && (
                 <button
                   onClick={() => setIsImportModalOpen(true)}
                   className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 px-6 py-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform"
@@ -918,19 +984,10 @@ export default function Planner({ data }) {
             }`}
           >
             <div
-              className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden sticky top-36 border transition-colors duration-300 ${
-                transferSource
-                  ? "border-amber-500 ring-4 ring-amber-500/20"
-                  : "border-gray-200 dark:border-gray-700"
-              }`}
+              className={
+                "bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden sticky top-36 border transition-colors duration-300 border-gray-200 dark:border-gray-700"
+              }
             >
-              {transferSource && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-200 px-4 py-3 text-sm font-bold text-center flex items-center justify-center gap-2 border-b border-amber-100 dark:border-amber-800/50">
-                  <RefreshCw size={16} className="animate-spin-slow" />
-                  Select replacement player
-                </div>
-              )}
-
               <PlayerFilters
                 allPlayers={data?.elements}
                 squad={squad}
@@ -943,8 +1000,7 @@ export default function Planner({ data }) {
 
               <div className="max-h-150 overflow-y-auto p-2 space-y-1 bg-gray-50/50 dark:bg-gray-900/20">
                 {filteredPlayers.map((p) => {
-                  const posFull = isPositionFull(p.element_type);
-                  const teamFull = isTeamFull(p.team, transferSource);
+                  const teamFull = isTeamFull(p.team);
                   const chance = p.chance_of_playing_next_round;
                   const isInjured = chance !== null && chance < 100;
                   const injuryColorClass =
@@ -956,14 +1012,11 @@ export default function Planner({ data }) {
                     <button
                       key={p.id}
                       onClick={() => {
-                        if (transferSource) handleTransferComplete(p);
-                        else addPlayer(p);
+                        addPlayer(p);
                       }}
-                      className={`w-full text-left p-2.5 rounded-xl flex justify-between items-center transition-all border group ${
-                        transferSource
-                          ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-amber-400 hover:shadow-md cursor-pointer"
-                          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:shadow-md cursor-pointer"
-                      }`}
+                      className={
+                        "w-full text-left p-2.5 rounded-xl flex justify-between items-center transition-all border group bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:shadow-md cursor-pointer"
+                      }
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 relative shrink-0">
@@ -1066,23 +1119,12 @@ export default function Planner({ data }) {
 
         {/* Global Action Buttons (Fixed Bottom) */}
         {substitutionSource && (
-          <div className="fixed bottom-8 left-0 right-0 z-50 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className="fixed bottom-8 left-0 right-0 z-50 flex justify-center ">
             <button
               onClick={handleCancelSubstitution}
-              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-red-700 border-4 border-white dark:border-gray-900 transform hover:scale-105 transition-all"
+              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-blue-700 border-4 border-white dark:border-gray-900 transform hover:scale-105 transition-all"
             >
               <XCircle size={20} /> Cancel Substitution
-            </button>
-          </div>
-        )}
-
-        {transferSource && (
-          <div className="fixed bottom-8 left-0 right-0 z-50 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300">
-            <button
-              onClick={handleCancelTransfer}
-              className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-amber-700 border-4 border-white dark:border-gray-900 transform hover:scale-105 transition-all"
-            >
-              <XCircle size={20} /> Cancel Transfer
             </button>
           </div>
         )}
@@ -1094,6 +1136,7 @@ export default function Planner({ data }) {
             fixtures={fixtures}
             onClose={() => setSelectedPlayer(null)}
             onRemove={removePlayer}
+            onAdd={addPlayer}
             onSubstituteStart={handleSubstitutionStart}
             isSavedState={isSaved}
             inSquad={
@@ -1109,7 +1152,6 @@ export default function Planner({ data }) {
             }
             onSetCaptain={handleSetCaptain}
             onSetViceCaptain={handleSetViceCaptain}
-            onTransfer={handleTransferStart}
             isBench={squad.findIndex((p) => p.id === selectedPlayer.id) >= 11}
           />
         )}
