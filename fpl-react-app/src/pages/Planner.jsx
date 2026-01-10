@@ -295,8 +295,10 @@ export default function Planner({ data }) {
   // --- ACTIONS ---
   const addPlayer = (player) => {
     if (!ensurePlanningMode()) return;
-    if (isPositionFull(player.element_type)) return;
-    if (isTeamFull(player.team)) return;
+    if (isTeamFull) {
+      alert("Your Squad is full!");
+      return;
+    }
 
     if (bank - player.now_cost < 0) {
       alert(
@@ -308,7 +310,7 @@ export default function Planner({ data }) {
     }
 
     const emptySlotIndex = squad.findIndex(
-      (p = p.is_placeholder && p.element_type === player.element_type)
+      (p) => p.is_placeholder && p.element_type === player.element_type
     );
 
     if (emptySlotIndex === -1) {
@@ -359,10 +361,7 @@ export default function Planner({ data }) {
 
     setBank((prev) => prev + refund);
     updateSquadState(newSquad);
-
-    setPositionFilter(playerToRemove.element_type);
-    const listElement = document.getElementById("player-list-section");
-    if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
+    setIsSaved(false);
   };
 
   const handlePlaceholderClick = (positionId) => {
@@ -1179,6 +1178,7 @@ export default function Planner({ data }) {
             fixtures={fixtures}
             onClose={() => setSelectedPlayer(null)}
             onRemove={removePlayer}
+            onAdd={addPlayer}
             onSubstituteStart={handleSubstitutionStart}
             isSavedState={isSaved}
             inSquad={
@@ -1194,7 +1194,6 @@ export default function Planner({ data }) {
             }
             onSetCaptain={handleSetCaptain}
             onSetViceCaptain={handleSetViceCaptain}
-            onTransfer={handleTransferStart}
             isBench={squad.findIndex((p) => p.id === selectedPlayer.id) >= 11}
           />
         )}

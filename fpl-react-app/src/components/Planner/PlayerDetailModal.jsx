@@ -5,7 +5,6 @@ import {
   CalendarDays,
   Crown,
   AlertTriangle,
-  RefreshCw,
   Info,
   Shield,
   Zap,
@@ -14,6 +13,9 @@ import {
   List,
   History,
   Activity,
+  UserMinus,
+  UserPlus,
+  Banknote,
 } from "lucide-react";
 import { useFPLApi } from "../../hooks/useFPLApi";
 import { getFDRClass } from "../../utils/FplUtils";
@@ -23,6 +25,7 @@ export default function PlayerDetailModal({
   fixtures,
   onClose,
   onRemove,
+  onAdd,
   onSubstituteStart,
   isSavedState = false,
   inSquad,
@@ -30,7 +33,7 @@ export default function PlayerDetailModal({
   isViceCaptain,
   onSetCaptain,
   onSetViceCaptain,
-  onTransfer,
+  onTransfer, // This maps to "addPlayer" when !inSquad
   isBench = false,
 }) {
   const { getPlayerImageUrl, getTeamBadgeUrl, getPlayerHistory } = useFPLApi();
@@ -48,7 +51,7 @@ export default function PlayerDetailModal({
   };
 
   const team = player.teams?.find((t) => t.id === player.team);
-  const playerBadge = getTeamBadgeUrl(team?.code); // Player's team badge
+  const playerBadge = getTeamBadgeUrl(team?.code);
 
   // --- Injury / Availability Logic ---
   const chance = player.chance_of_playing_next_round;
@@ -69,7 +72,7 @@ export default function PlayerDetailModal({
           icon: "text-amber-500",
         };
 
-  // --- Fixture Logic (Summary) ---
+  // --- Fixture Logic ---
   const getNextFixtures = () => {
     if (!fixtures || fixtures.length === 0) return [];
     const teamFixtures = fixtures.filter(
@@ -363,15 +366,12 @@ export default function PlayerDetailModal({
 
                                 // Determine Home/Away Logic
                                 const isPlayerHome = match.was_home;
-
-                                // 1. Identify which badge/name goes where
                                 const homeBadge = isPlayerHome
                                   ? playerBadge
                                   : opponentBadge;
                                 const awayBadge = isPlayerHome
                                   ? opponentBadge
                                   : playerBadge;
-
                                 const homeShortName = isPlayerHome
                                   ? team?.short_name
                                   : opponent?.short_name;
@@ -379,14 +379,8 @@ export default function PlayerDetailModal({
                                   ? opponent?.short_name
                                   : team?.short_name;
 
-                                // 2. Score Format: Home - Away
-                                const homeTeamScore = match.team_h_score
-                                  ? match.team_h_score
-                                  : 0;
-                                const awayTeamScore = match.team_a_score
-                                  ? match.team_a_score
-                                  : 0;
-
+                                const homeTeamScore = match.team_h_score || 0;
+                                const awayTeamScore = match.team_a_score || 0;
                                 const score = `${homeTeamScore}-${awayTeamScore}`;
 
                                 return (
@@ -394,14 +388,10 @@ export default function PlayerDetailModal({
                                     key={i}
                                     className="grid grid-cols-12 gap-1 items-center p-2 text-xs border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                                   >
-                                    {/* GW Number */}
                                     <div className="col-span-2 font-bold text-gray-400">
                                       GW{match.round}
                                     </div>
-
-                                    {/* Match Display */}
                                     <div className="col-span-6 flex items-center justify-start">
-                                      {/* HOME TEAM (Left) */}
                                       <div className="flex flex-col items-center w-8">
                                         <img
                                           src={homeBadge}
@@ -412,13 +402,9 @@ export default function PlayerDetailModal({
                                           {homeShortName}
                                         </span>
                                       </div>
-
-                                      {/* SCORE (Center) */}
                                       <div className="px-2 font-black text-gray-700 dark:text-gray-200 min-w-8 text-center">
                                         {score}
                                       </div>
-
-                                      {/* AWAY TEAM (Right) */}
                                       <div className="flex flex-col items-center w-8">
                                         <img
                                           src={awayBadge}
@@ -430,13 +416,9 @@ export default function PlayerDetailModal({
                                         </span>
                                       </div>
                                     </div>
-
-                                    {/* Minutes */}
                                     <div className="col-span-2 text-center text-gray-500">
                                       {match.minutes}'
                                     </div>
-
-                                    {/* Points */}
                                     <div className="col-span-2 text-right font-black">
                                       <span
                                         className={`${
@@ -494,10 +476,11 @@ export default function PlayerDetailModal({
           </div>
         </div>
 
-        {/* Footer */}
-        {inSquad ? (
-          <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-            {isSavedState ? (
+        {/* --- ACTIONS FOOTER (Fixed) --- */}
+        <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+          {inSquad ? (
+            isSavedState ? (
+              /* SAVED MODE: Switch (Sub) OR Transfer Out (Sell) */
               <div className="grid grid-cols-2 gap-2">
                 <ActionButton
                   onClick={() => onSubstituteStart(player.id)}
@@ -507,39 +490,42 @@ export default function PlayerDetailModal({
                 />
                 <ActionButton
                   onClick={() => {
-                    onTransfer(player.id);
+                    // Logic: Transfer Out means Removing to create empty slot
+                    onRemove(player.id);
                     onClose();
                   }}
-                  icon={<RefreshCw size={16} />}
-                  label="Transfer"
-                  color="bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200 dark:shadow-none"
+                  icon={<UserMinus size={16} />}
+                  label="Remove Player"
+                  color="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 dark:border-red-800 dark:bg-red-900/20"
                 />
               </div>
             ) : (
+              /* BUILDING MODE: Just Remove */
               <ActionButton
                 onClick={() => {
                   onRemove(player.id);
                   onClose();
                 }}
-                icon={<X size={16} />}
+                icon={<UserMinus size={16} />}
                 label="Remove Player"
                 color="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 dark:border-red-800 dark:bg-red-900/20"
               />
-            )}
-          </div>
-        ) : (
-          <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-center">
-            <button
-              onClick={() => {
-                onClose();
-                onTransfer(player.id);
-              }}
-              className="w-full py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
-            >
-              <RefreshCw size={16} /> Transfer In
-            </button>
-          </div>
-        )}
+            )
+          ) : (
+            /* NOT IN SQUAD: Add Player */
+            <div className="bg-gray-50 dark:bg-gray-900 text-center">
+              <button
+                onClick={() => {
+                  onAdd(player);
+                  onClose();
+                }}
+                className="w-full py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                <UserPlus size={16} /> Add to Squad
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
