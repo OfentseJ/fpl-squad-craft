@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const STORAGE_KEY = "fpl_planner_v1";
+const STORAGE_KEY = "fpl_planner_v2";
 
 export function usePlannerStorage() {
   const [baseSquad, setBaseSquad] = useState([]);

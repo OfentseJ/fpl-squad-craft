@@ -89,7 +89,6 @@ export default function Planner({ data }) {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [substitutionSource, setSubstitutionSource] = useState(null);
-  const [transferSource, setTransferSource] = useState(null);
 
   const [view, setView] = useState("pitch");
   const [positionFilter, setPositionFilter] = useState("all");
@@ -129,11 +128,24 @@ export default function Planner({ data }) {
     }
   }, [data]);
 
+  const isDefaultSquad = (s) =>
+    s.length === 15 && s.every((p) => p.is_placeholder);
   useEffect(() => {
     if (!isStorageLoaded) return;
-    if (baseSquad.length > 0 && squad.length === 0) {
-      setSquad(baseSquad);
-      setIsSaved(true);
+    if (baseSquad.length > 0 && isDefaultSquad(squad)) {
+      let safeSquad = [...baseSquad];
+      if (safeSquad.length < 15) {
+        console.warn("Hydrating legacy squad format...");
+        const emptyTemplate = generateEmptySquad();
+        safeSquad = emptyTemplate.map((placeholder, i) => {
+          return safeSquad[i] || placeholder;
+        });
+      }
+
+      setSquad(safeSquad);
+
+      const realPlayerCount = safeSquad.filter((p) => !p.is_placeholder).length;
+      setIsSaved(realPlayerCount === 15);
     }
   }, [isStorageLoaded, baseSquad]);
 
@@ -273,15 +285,6 @@ export default function Planner({ data }) {
   };
 
   // --- EXISTING HELPERS ---
-  const isPositionFull = (elementType) => {
-    const count = squad.filter((p) => p.element_type === elementType).length;
-    if (elementType === 1) return count >= 2;
-    if (elementType === 2) return count >= 5;
-    if (elementType === 3) return count >= 5;
-    if (elementType === 4) return count >= 3;
-    return false;
-  };
-
   const isTeamFull = (teamId, ignorePlayerId = null) => {
     const relevantSquad = ignorePlayerId
       ? squad.filter((p) => p.id !== ignorePlayerId)
@@ -295,10 +298,6 @@ export default function Planner({ data }) {
   // --- ACTIONS ---
   const addPlayer = (player) => {
     if (!ensurePlanningMode()) return;
-    if (isTeamFull) {
-      alert("Your Squad is full!");
-      return;
-    }
 
     if (bank - player.now_cost < 0) {
       alert(
@@ -449,104 +448,6 @@ export default function Planner({ data }) {
     setSubstitutionSource(null);
   };
 
-  // --- TRANSFERS ---
-  const handleTransferStart = (playerId) => {
-    if (!ensurePlanningMode()) return;
-    const playerToTransfer = squad.find((p) => p.id === playerId);
-    if (!playerToTransfer) return;
-    setTransferSource(playerId);
-    setPositionFilter(playerToTransfer.element_type);
-    const listElement = document.getElementById("player-list-section");
-    if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const handleTransferComplete = (newPlayer) => {
-    if (!transferSource) return;
-
-    const oldPlayerIndex = squad.findIndex((p) => p.id === transferSource);
-    if (oldPlayerIndex === -1) return;
-    const oldPlayer = squad[oldPlayerIndex];
-
-    if (oldPlayer.element_type !== newPlayer.element_type) {
-      alert("Position mismatch.");
-      return;
-    }
-    if (isTeamFull(newPlayer.team, transferSource)) {
-      alert("Team limit reached.");
-      return;
-    }
-
-    const sellingPrice =
-      oldPlayer.selling_price !== undefined
-        ? oldPlayer.selling_price
-        : oldPlayer.now_cost;
-    const buyPrice = newPlayer.now_cost;
-    const priceDiff = sellingPrice - buyPrice; // e.g., +0.5 or -0.2
-    const newBank = bank + priceDiff;
-
-    if (newBank < 0) {
-      alert(
-        `Insufficient funds! You need £${Math.abs(newBank / 10).toFixed(
-          1
-        )}m more.`
-      );
-      return;
-    }
-
-    const performSwap = (list) => {
-      const newList = [...list];
-      const idx = newList.findIndex((p) => p.id === oldPlayer.id);
-      if (idx !== -1) {
-        newList[idx] = {
-          ...newPlayer,
-          starting: newList[idx].starting,
-          teams: data.teams,
-          is_captain: false,
-          is_vice_captain: false,
-        };
-      }
-      return newList;
-    };
-
-    const updatedVisualSquad = performSwap(squad);
-
-    setSquad(updatedVisualSquad);
-    setBank(newBank);
-    setTransferSource(null);
-    setPlannedSquads((prev) => {
-      const nextState = { ...prev };
-      nextState[viewingGw] = {
-        squad: updatedVisualSquad,
-        bank: newBank,
-      };
-      Object.keys(nextState).forEach((gwKey) => {
-        const gwId = parseInt(gwKey);
-        if (gwId > viewingGw) {
-          const futureWeekData = nextState[gwId];
-
-          const futureSquad = Array.isArray(futureWeekData)
-            ? futureWeekData
-            : futureWeekData.squad;
-          const futureBank = Array.isArray(futureWeekData)
-            ? bank
-            : futureWeekData.bank;
-          const updatedFutureSquad = performSwap(futureSquad);
-          const updatedFutureBank = futureBank + priceDiff;
-
-          nextState[gwId] = {
-            squad: updatedFutureSquad,
-            bank: updatedFutureBank,
-          };
-        }
-      });
-      return nextState;
-    });
-  };
-
-  const handleCancelTransfer = () => {
-    setTransferSource(null);
-  };
-
   // --- SAVE / IMPORT ---
   const handleSaveTeam = () => {
     if (squad.length < 15) {
@@ -604,7 +505,6 @@ export default function Planner({ data }) {
       setBank(1000);
 
       setSubstitutionSource(null);
-      setTransferSource(null);
       clearStorage();
       setViewingGw(currentActualGw + 1);
     }
@@ -887,11 +787,9 @@ export default function Planner({ data }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 relative items-start">
           {/* LEFT COL: PITCH (Span 8) */}
           <div
-            className={`lg:col-span-7 order-1 relative transition-all duration-300 ${
-              transferSource
-                ? "opacity-40 pointer-events-none grayscale blur-sm"
-                : "opacity-100"
-            }`}
+            className={
+              "lg:col-span-7 order-1 relative transition-all duration-300 "
+            }
           >
             {view === "pitch" ? (
               <Pitch
@@ -1002,19 +900,10 @@ export default function Planner({ data }) {
             }`}
           >
             <div
-              className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden sticky top-36 border transition-colors duration-300 ${
-                transferSource
-                  ? "border-amber-500 ring-4 ring-amber-500/20"
-                  : "border-gray-200 dark:border-gray-700"
-              }`}
+              className={
+                "bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden sticky top-36 border transition-colors duration-300 border-gray-200 dark:border-gray-700"
+              }
             >
-              {transferSource && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-200 px-4 py-3 text-sm font-bold text-center flex items-center justify-center gap-2 border-b border-amber-100 dark:border-amber-800/50">
-                  <RefreshCw size={16} className="animate-spin-slow" />
-                  Select replacement player
-                </div>
-              )}
-
               <PlayerFilters
                 allPlayers={data?.elements}
                 squad={squad}
@@ -1027,8 +916,7 @@ export default function Planner({ data }) {
 
               <div className="max-h-150 overflow-y-auto p-2 space-y-1 bg-gray-50/50 dark:bg-gray-900/20">
                 {filteredPlayers.map((p) => {
-                  const posFull = isPositionFull(p.element_type);
-                  const teamFull = isTeamFull(p.team, transferSource);
+                  const teamFull = isTeamFull(p.team);
                   const chance = p.chance_of_playing_next_round;
                   const isInjured = chance !== null && chance < 100;
                   const injuryColorClass =
@@ -1040,14 +928,11 @@ export default function Planner({ data }) {
                     <button
                       key={p.id}
                       onClick={() => {
-                        if (transferSource) handleTransferComplete(p);
-                        else addPlayer(p);
+                        addPlayer(p);
                       }}
-                      className={`w-full text-left p-2.5 rounded-xl flex justify-between items-center transition-all border group ${
-                        transferSource
-                          ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-amber-400 hover:shadow-md cursor-pointer"
-                          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:shadow-md cursor-pointer"
-                      }`}
+                      className={
+                        "w-full text-left p-2.5 rounded-xl flex justify-between items-center transition-all border group bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:shadow-md cursor-pointer"
+                      }
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 relative shrink-0">
@@ -1150,23 +1035,12 @@ export default function Planner({ data }) {
 
         {/* Global Action Buttons (Fixed Bottom) */}
         {substitutionSource && (
-          <div className="fixed bottom-8 left-0 right-0 z-50 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className="fixed bottom-8 left-0 right-0 z-50 flex justify-center ">
             <button
               onClick={handleCancelSubstitution}
-              className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-red-700 border-4 border-white dark:border-gray-900 transform hover:scale-105 transition-all"
+              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-blue-700 border-4 border-white dark:border-gray-900 transform hover:scale-105 transition-all"
             >
               <XCircle size={20} /> Cancel Substitution
-            </button>
-          </div>
-        )}
-
-        {transferSource && (
-          <div className="fixed bottom-8 left-0 right-0 z-50 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300">
-            <button
-              onClick={handleCancelTransfer}
-              className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-full shadow-2xl font-bold hover:bg-amber-700 border-4 border-white dark:border-gray-900 transform hover:scale-105 transition-all"
-            >
-              <XCircle size={20} /> Cancel Transfer
             </button>
           </div>
         )}
