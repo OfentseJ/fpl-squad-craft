@@ -32,6 +32,37 @@ import TeamValueEditModal from "../components/Planner/TeamValueEditModal";
 import CleanSheetModal from "../components/Planner/CleanSheetModal";
 import ProjectedGoalsModal from "../components/Planner/ProjectedGoalsModal";
 
+const createPlaceholder = (index, type) => ({
+  id: `placeholder-${index}-${Date.now()}`,
+  element_type: type,
+  web_name: "Empty",
+  now_cost: 0,
+  team: null,
+  is_placeholder: true,
+  position_index: index,
+});
+
+const generateEmptySquad = () => {
+  const positions = [
+    1, // 0: GKP (Starter)
+    2,
+    2,
+    2,
+    2, // 1-4: DEF (Starters)
+    3,
+    3,
+    3,
+    3, // 5-8: MID (Starters)
+    4,
+    4, // 9-10: FWD (Starters)
+    1, // 11: GKP (Bench)
+    2, // 12: DEF (Bench)
+    3, // 13: MID (Bench)
+    4, // 14: FWD (Bench)
+  ];
+  return positions.map((pos, i) => createPlaceholder(i, pos));
+};
+
 export default function Planner({ data }) {
   // --- HOOKS ---
   const {
