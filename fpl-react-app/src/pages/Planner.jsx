@@ -621,33 +621,34 @@ export default function Planner({ data }) {
 
       if (!picks || picks.length === 0) throw new Error("No players found.");
 
-      const importedSquad = picks
-        .map((pick) => {
-          const playerDetails = data.elements.find(
-            (e) => e.id === pick.element
-          );
-          if (!playerDetails) return null;
-          return {
+      const organizedSquad = generateEmptySquad();
+
+      picks.forEach((pick, i) => {
+        if (i >= 15) return;
+
+        const playerDetails = data.elements.find((e) => e.id === pick.element);
+        if (playerDetails) {
+          organizedSquad[i] = {
             ...playerDetails,
             teams: data.teams,
             is_captain: pick.is_captain,
             is_vice_captain: pick.is_vice_captain,
+            selling_price: pick.selling_price,
+            is_placeholder: false,
+            starting: i < 11,
           };
-        })
-        .filter(Boolean);
+        }
+      });
 
-      if (importedSquad.length < 15) throw new Error("Incomplete squad.");
-
-      setSquad(importedSquad);
+      setSquad(organizedSquad);
       setTeamInfo(info);
-      setBank(info.last_deadline_bank || 0);
-      setManualTeamValue(null);
-      setIsSaved(true);
-      setView("pitch");
 
-      // Sync with storage
-      setBaseSquad(importedSquad);
-      saveImportedSquad(importedSquad, info);
+      setBank(info.last_deadline_bank || 0);
+
+      setIsSaved(true);
+
+      setBaseSquad(organizedSquad);
+      saveImportedSquad(organizedSquad, info);
 
       return true;
     } catch (err) {
