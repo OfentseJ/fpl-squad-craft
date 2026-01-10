@@ -81,7 +81,7 @@ export default function Planner({ data }) {
     useFPLApi();
 
   // --- LOCAL STATE ---
-  const [squad, setSquad] = useState([]);
+  const [squad, setSquad] = useState(generateEmptySquad());
   const [filteredPlayers, setFilteredPlayers] = useState([]);
   const [activeSortMetric, setActiveSortMetric] = useState("total_points");
 
@@ -286,25 +286,58 @@ export default function Planner({ data }) {
     const relevantSquad = ignorePlayerId
       ? squad.filter((p) => p.id !== ignorePlayerId)
       : squad;
-    return relevantSquad.filter((p) => p.team === teamId).length >= 3;
+    return (
+      relevantSquad.filter((p) => !p.is_placeholder && p.team === teamId)
+        .length >= 3
+    );
   };
 
   // --- ACTIONS ---
   const addPlayer = (player) => {
     if (!ensurePlanningMode()) return;
-    if (squad.length >= 15) return alert("Your squad is full!");
     if (isPositionFull(player.element_type)) return;
     if (isTeamFull(player.team)) return;
 
     if (bank - player.now_cost < 0) {
-      alert("Not enough money in the bank!");
+      alert(
+        `Not enough money! You need £${((player.now_cost - bank) / 10).toFixed(
+          1
+        )}m more.`
+      );
       return;
     }
 
-    const newSquad = [
-      ...squad,
-      { ...player, starting: true, teams: data.teams },
-    ];
+    const emptySlotIndex = squad.findIndex(
+      (p = p.is_placeholder && p.element_type === player.element_type)
+    );
+
+    if (emptySlotIndex === -1) {
+      alert(
+        `No empty ${
+          player.element_type === 1
+            ? "GKP"
+            : player.element_type === 2
+            ? "DEF"
+            : player.element_type === 3
+            ? "MID"
+            : "FWD"
+        } slots! Click a player on the pitch to remove them first.`
+      );
+      return;
+    }
+
+    const newSquad = [...squad];
+
+    const isStarter = emptySlotIndex < 11;
+
+    newSquad[emptySlotIndex] = {
+      ...player,
+      starting: isStarter,
+      teams: data.teams,
+      is_captain: false,
+      is_vice_captain: false,
+      is_placeholder: false,
+    };
 
     setBank((prev) => prev - player.now_cost);
     updateSquadState(newSquad);
@@ -312,8 +345,24 @@ export default function Planner({ data }) {
 
   const removePlayer = (playerId) => {
     if (!ensurePlanningMode()) return;
-    const newSquad = squad.filter((p) => p.id !== playerId);
+    const playerIndex = squad.findIndex((p) => p.id == playerId);
+    if (playerIndex === -1) return;
+
+    const playerToRemove = squad[playerIndex];
+    const refund = playerToRemove.selling_price || playerToRemove.now_cost;
+    const placeholder = createPlaceholder(
+      playerIndex,
+      playerToRemove.element_type
+    );
+    const newSquad = [...squad];
+    newSquad[playerIndex] = placeholder;
+
+    setBank((prev) => prev + refund);
     updateSquadState(newSquad);
+
+    setPositionFilter(playerToRemove.element_type);
+    const listElement = document.getElementById("player-list-section");
+    if (listElement) listElement.scrollIntoView({ behavior: "smooth" });
   };
 
   const handlePlaceholderClick = (positionId) => {
