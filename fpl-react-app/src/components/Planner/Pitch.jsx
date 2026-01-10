@@ -178,15 +178,18 @@ export default function Pitch({
 
   const renderRow = (rowObj, rowIndex) => {
     return rowObj.players.map((p, i) => {
-      const key = p
+      const key = p.id
         ? `player-${p.id}`
         : `placeholder-${rowObj.type}-${rowIndex}-${i}`;
 
-      const isSubSource = substitutionSource === p?.id;
+      const isRealPlayer = !p.is_placeholder;
+
+      const isSubSource = substitutionSource === p.id;
       let isValidTarget = true;
 
+      // SUBSTITUTION LOGIC
       if (substitutionSource) {
-        if (!p) {
+        if (!isRealPlayer) {
           isValidTarget = false;
         } else if (p.id === substitutionSource) {
           isValidTarget = true;
@@ -197,7 +200,7 @@ export default function Pitch({
         }
       }
 
-      return p ? (
+      return isRealPlayer ? (
         <div
           key={key}
           className={`transition-all duration-300 ${
@@ -229,8 +232,8 @@ export default function Pitch({
       ) : (
         <Placeholder
           key={key}
-          position={labelMap[rowObj.type]}
-          onClick={() => onPlaceholderClick(rowObj.type)}
+          position={labelMap[p.element_type]}
+          onClick={() => onPlaceholderClick(p.element_type)}
           disabled={!!substitutionSource}
         />
       );
