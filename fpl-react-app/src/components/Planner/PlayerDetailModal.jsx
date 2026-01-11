@@ -15,7 +15,11 @@ import {
   Activity,
   UserMinus,
   UserPlus,
-  Banknote,
+  Target,
+  Hand,
+  Footprints,
+  BarChart2,
+  Flag,
 } from "lucide-react";
 import { useFPLApi } from "../../hooks/useFPLApi";
 import { getFDRClass } from "../../utils/FplUtils";
@@ -33,7 +37,6 @@ export default function PlayerDetailModal({
   isViceCaptain,
   onSetCaptain,
   onSetViceCaptain,
-  onTransfer, // This maps to "addPlayer" when !inSquad
   isBench = false,
 }) {
   const { getPlayerImageUrl, getTeamBadgeUrl, getPlayerHistory } = useFPLApi();
@@ -119,6 +122,7 @@ export default function PlayerDetailModal({
         onClick={onClose}
       />
 
+      {/* Increased Width for better stats display (w-full sm:w-125 -> sm:w-[500px]) */}
       <div className="fixed right-0 top-0 bottom-0 w-full sm:w-125 bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col animate-slideInRight border-l border-gray-200 dark:border-gray-800">
         {/* --- HEADER --- */}
         <div className="relative h-48 bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden shrink-0">
@@ -168,7 +172,7 @@ export default function PlayerDetailModal({
         </div>
 
         {/* --- SCROLLABLE CONTENT --- */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900 custom-scrollbar">
           <div className="p-5 space-y-5">
             {/* Injury Banner */}
             {isInjured && player.news && (
@@ -194,7 +198,7 @@ export default function PlayerDetailModal({
               </div>
             )}
 
-            {/* Stats Grid */}
+            {/* Main Meta Grid */}
             <div className="grid grid-cols-3 gap-3">
               <StatBox
                 label="Price"
@@ -214,6 +218,45 @@ export default function PlayerDetailModal({
                 icon={<Shield size={12} />}
                 color="text-purple-600 dark:text-purple-400"
               />
+            </div>
+
+            {/* NEW: Horizontal Scrollable Performance Stats */}
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
+                Season Performance
+              </h3>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-none snap-x">
+                <HorizontalStatCard
+                  label="Goals"
+                  value={player.goals_scored}
+                  icon={<Target size={14} className="text-red-500" />}
+                />
+                <HorizontalStatCard
+                  label="Assists"
+                  value={player.assists}
+                  icon={<Footprints size={14} className="text-blue-500" />}
+                />
+                <HorizontalStatCard
+                  label="Clean Sheets"
+                  value={player.clean_sheets}
+                  icon={<Shield size={14} className="text-green-500" />}
+                />
+                <HorizontalStatCard
+                  label="Saves"
+                  value={player.saves}
+                  icon={<Hand size={14} className="text-amber-500" />}
+                />
+                <HorizontalStatCard
+                  label="Bonus"
+                  value={player.bonus}
+                  icon={<Crown size={14} className="text-yellow-500" />}
+                />
+                <HorizontalStatCard
+                  label="xG"
+                  value={player.expected_goals || "0.0"}
+                  icon={<Activity size={14} className="text-purple-500" />}
+                />
+              </div>
             </div>
 
             {/* Summary Ticker */}
@@ -270,26 +313,24 @@ export default function PlayerDetailModal({
                 <div className="mt-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                   {/* Tabs */}
                   <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg mb-4">
-                    <button
+                    <TabButton
+                      isActive={activeTab === "fixtures"}
                       onClick={() => setActiveTab("fixtures")}
-                      className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-bold transition-all ${
-                        activeTab === "fixtures"
-                          ? "bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white"
-                          : "text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      <List size={14} /> Future
-                    </button>
-                    <button
+                      icon={<List size={14} />}
+                      label="Future"
+                    />
+                    <TabButton
+                      isActive={activeTab === "stats"}
+                      onClick={() => setActiveTab("stats")}
+                      icon={<BarChart2 size={14} />}
+                      label="Stats"
+                    />
+                    <TabButton
+                      isActive={activeTab === "history"}
                       onClick={() => setActiveTab("history")}
-                      className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-bold transition-all ${
-                        activeTab === "history"
-                          ? "bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white"
-                          : "text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      <History size={14} /> History
-                    </button>
+                      icon={<History size={14} />}
+                      label="History"
+                    />
                   </div>
 
                   <div className="min-h-50">
@@ -343,6 +384,81 @@ export default function PlayerDetailModal({
                       </div>
                     )}
 
+                    {/* NEW: Detailed Stats Tab */}
+                    {activeTab === "stats" && (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                        {/* ICT Index */}
+                        <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                          <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">
+                            ICT Index
+                          </h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <DetailRow
+                              label="Influence"
+                              value={player.influence}
+                            />
+                            <DetailRow
+                              label="Creativity"
+                              value={player.creativity}
+                            />
+                            <DetailRow label="Threat" value={player.threat} />
+                            <DetailRow
+                              label="ICT Total"
+                              value={player.ict_index}
+                              isHighlight
+                            />
+                          </div>
+                        </div>
+
+                        {/* Defensive */}
+                        <div className="bg-red-50/50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100 dark:border-red-900/30">
+                          <h4 className="text-xs font-bold text-red-500 uppercase mb-2 flex items-center gap-1">
+                            <Shield size={12} /> Defensive
+                          </h4>
+                          <div className="space-y-2">
+                            <DetailRow
+                              label="Goals Conceded"
+                              value={player.goals_conceded}
+                            />
+                            <DetailRow
+                              label="Penalties Saved"
+                              value={player.penalties_saved}
+                            />
+                            <DetailRow
+                              label="Own Goals"
+                              value={player.own_goals}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Discipline */}
+                        <div className="bg-yellow-50/50 dark:bg-yellow-900/10 p-3 rounded-xl border border-yellow-100 dark:border-yellow-900/30">
+                          <h4 className="text-xs font-bold text-yellow-600 uppercase mb-2 flex items-center gap-1">
+                            <Flag size={12} /> Discipline
+                          </h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <DetailRow
+                              label="Yellow Cards"
+                              value={player.yellow_cards}
+                            />
+                            <DetailRow
+                              label="Red Cards"
+                              value={player.red_cards}
+                              valueColor="text-red-600"
+                            />
+                            <DetailRow
+                              label="Penalties Missed"
+                              value={player.penalties_missed}
+                            />
+                            <DetailRow
+                              label="Fouls"
+                              value={player.fouls || 0}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* History List */}
                     {activeTab === "history" && (
                       <>
@@ -353,6 +469,13 @@ export default function PlayerDetailModal({
                           </div>
                         ) : historyData?.history ? (
                           <div className="space-y-1">
+                            <div className="grid grid-cols-12 gap-1 px-2 py-1.5 text-[10px] uppercase font-bold text-gray-400 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 sticky top-0 backdrop-blur-sm z-10">
+                              <div className="col-span-2">GW</div>
+                              <div className="col-span-6">Opp</div>
+                              <div className="col-span-2 text-center">Min</div>
+                              <div className="col-span-2 text-right">Pts</div>
+                            </div>
+
                             {historyData.history
                               .slice()
                               .reverse()
@@ -363,8 +486,6 @@ export default function PlayerDetailModal({
                                 const opponentBadge = getTeamBadgeUrl(
                                   opponent?.code
                                 );
-
-                                // Determine Home/Away Logic
                                 const isPlayerHome = match.was_home;
                                 const homeBadge = isPlayerHome
                                   ? playerBadge
@@ -378,7 +499,6 @@ export default function PlayerDetailModal({
                                 const awayShortName = isPlayerHome
                                   ? opponent?.short_name
                                   : team?.short_name;
-
                                 const homeTeamScore = match.team_h_score || 0;
                                 const awayTeamScore = match.team_a_score || 0;
                                 const score = `${homeTeamScore}-${awayTeamScore}`;
@@ -389,7 +509,7 @@ export default function PlayerDetailModal({
                                     className="grid grid-cols-12 gap-1 items-center p-2 text-xs border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                                   >
                                     <div className="col-span-2 font-bold text-gray-400">
-                                      GW{match.round}
+                                      {match.round}
                                     </div>
                                     <div className="col-span-6 flex items-center justify-start">
                                       <div className="flex flex-col items-center w-8">
@@ -480,7 +600,6 @@ export default function PlayerDetailModal({
         <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
           {inSquad ? (
             isSavedState ? (
-              /* SAVED MODE: Switch (Sub) OR Transfer Out (Sell) */
               <div className="grid grid-cols-2 gap-2">
                 <ActionButton
                   onClick={() => onSubstituteStart(player.id)}
@@ -490,17 +609,15 @@ export default function PlayerDetailModal({
                 />
                 <ActionButton
                   onClick={() => {
-                    // Logic: Transfer Out means Removing to create empty slot
                     onRemove(player.id);
                     onClose();
                   }}
                   icon={<UserMinus size={16} />}
-                  label="Remove Player"
+                  label="Remove"
                   color="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 dark:border-red-800 dark:bg-red-900/20"
                 />
               </div>
             ) : (
-              /* BUILDING MODE: Just Remove */
               <ActionButton
                 onClick={() => {
                   onRemove(player.id);
@@ -512,7 +629,6 @@ export default function PlayerDetailModal({
               />
             )
           ) : (
-            /* NOT IN SQUAD: Add Player */
             <div className="bg-gray-50 dark:bg-gray-900 text-center">
               <button
                 onClick={() => {
@@ -531,7 +647,8 @@ export default function PlayerDetailModal({
   );
 }
 
-// Sub-components
+// --- Sub-components ---
+
 function StatBox({ label, value, icon, color }) {
   return (
     <div className="bg-white dark:bg-gray-800 p-2.5 rounded-xl text-center border border-gray-100 dark:border-gray-700 shadow-sm">
@@ -543,6 +660,58 @@ function StatBox({ label, value, icon, color }) {
       <div className="text-lg font-black text-gray-800 dark:text-white tracking-tight leading-none">
         {value}
       </div>
+    </div>
+  );
+}
+
+// New Horizontal Scroll Item
+function HorizontalStatCard({ label, value, icon }) {
+  return (
+    <div className="snap-start shrink-0 w-24 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700/50 flex flex-col items-center justify-center">
+      <div className="mb-1 opacity-80">{icon}</div>
+      <div className="text-sm font-black text-gray-800 dark:text-gray-100">
+        {value}
+      </div>
+      <div className="text-[9px] text-gray-400 font-bold uppercase">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function TabButton({ isActive, onClick, icon, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-bold transition-all ${
+        isActive
+          ? "bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white"
+          : "text-gray-500 hover:text-gray-700"
+      }`}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  isHighlight = false,
+  valueColor = "text-gray-800 dark:text-gray-200",
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+        {label}
+      </span>
+      <span
+        className={`text-sm font-bold ${
+          isHighlight ? "text-blue-600 dark:text-blue-400" : valueColor
+        }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }
