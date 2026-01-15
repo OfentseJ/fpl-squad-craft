@@ -86,7 +86,7 @@ export default function PlayerDetailModal({
   };
 
   const allFixtures = getNextFixtures();
-  const summaryFixtures = allFixtures.slice(0, 5).map((f) => {
+  const summaryFixtures = allFixtures.slice(0, 6).map((f) => {
     const isHome = f.team_h === player.team;
     const opponentId = isHome ? f.team_a : f.team_h;
     const opponent = player.teams?.find((t) => t.id === opponentId);
@@ -114,6 +114,13 @@ export default function PlayerDetailModal({
         });
     }
   }, [isExpanded, activeTab, player.id, historyData, getPlayerHistory]);
+
+  const handleAddClick = () => {
+    const wasAdded = onAdd(player);
+    if (wasAdded) {
+      onClose();
+    }
+  };
 
   return (
     <>
@@ -280,7 +287,7 @@ export default function PlayerDetailModal({
                         className="w-6 h-6 object-contain mb-1"
                       />
                       <div
-                        className={`w-full text-[9px] font-bold text-center py-0.5 rounded text-white ${getFDRClass(
+                        className={`w-full text-[9px] font-extrabold text-center py-0.5 rounded ${getFDRClass(
                           fix.difficulty
                         )}`}
                       >
@@ -372,11 +379,11 @@ export default function PlayerDetailModal({
                                 </div>
                               </div>
                               <span
-                                className={`text-xs font-bold px-3 py-1 rounded-md text-white shadow-sm ${getFDRClass(
+                                className={`text-xs text-center w-16 font-bold px-3 py-1 rounded-md shadow-sm ${getFDRClass(
                                   difficulty
                                 )}`}
                               >
-                                FDR {difficulty}
+                                {difficulty}
                               </span>
                             </div>
                           );
@@ -631,10 +638,7 @@ export default function PlayerDetailModal({
           ) : (
             <div className="bg-gray-50 dark:bg-gray-900 text-center">
               <button
-                onClick={() => {
-                  onAdd(player);
-                  onClose();
-                }}
+                onClick={handleAddClick}
                 className="w-full py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
               >
                 <UserPlus size={16} /> Add to Squad

@@ -379,15 +379,27 @@ export default function Planner({ data }) {
 
   // --- ACTIONS ---
   const addPlayer = (player) => {
-    if (!ensurePlanningMode()) return;
-
+    if (!ensurePlanningMode()) return false;
     if (bank - player.now_cost < 0) {
       alert(
         `Not enough money! You need £${((player.now_cost - bank) / 10).toFixed(
           1
         )}m more.`
       );
-      return;
+      return false;
+    }
+
+    const playersFromSameTeam = squad.filter(
+      (p) => !p.is_placeholder && p.team === player.team
+    ).length;
+
+    if (playersFromSameTeam >= 3) {
+      const teamName =
+        data?.teams?.find((t) => t.id === player.team)?.name || "this team";
+      alert(
+        `You cannot have more than 3 players from ${teamName}.\nPlease remove a player from ${teamName} first.`
+      );
+      return false;
     }
 
     const emptySlotIndex = squad.findIndex(
@@ -395,22 +407,37 @@ export default function Planner({ data }) {
     );
 
     if (emptySlotIndex === -1) {
-      alert(
-        `No empty ${
+      const isSquadFull = squad.every((p) => !p.is_placeholder);
+
+      if (isSquadFull) {
+        alert(
+          "Squad is full! You have reached the maximum of 15 players.\nPlease remove a player to make room."
+        );
+      } else {
+        const positionName =
           player.element_type === 1
-            ? "GKP"
+            ? "Goalkeepers"
             : player.element_type === 2
-            ? "DEF"
+            ? "Defenders"
             : player.element_type === 3
-            ? "MID"
-            : "FWD"
-        } slots! Click a player on the pitch to remove them first.`
-      );
-      return;
+            ? "Midfielders"
+            : "Forwards";
+        alert(
+          `You cannot add more ${positionName}.\nPlease remove a ${
+            player.element_type === 1
+              ? "GKP"
+              : player.element_type === 2
+              ? "DEF"
+              : player.element_type === 3
+              ? "MID"
+              : "FWD"
+          } first.`
+        );
+      }
+      return false;
     }
 
     const newSquad = [...squad];
-
     const isStarter = emptySlotIndex < 11;
 
     newSquad[emptySlotIndex] = {
@@ -425,6 +452,7 @@ export default function Planner({ data }) {
 
     setBank(newBank);
     updateSquadState(newSquad, newBank);
+    return true;
   };
 
   const removePlayer = (playerId) => {
