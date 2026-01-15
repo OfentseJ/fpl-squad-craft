@@ -578,33 +578,34 @@ export default function Planner({ data }) {
       return;
     }
 
-    const gks = squad.filter((p) => p.element_type === 1);
-    const defs = squad.filter((p) => p.element_type === 2);
-    const mids = squad.filter((p) => p.element_type === 3);
-    const fwds = squad.filter((p) => p.element_type === 4);
+    const currentStarters = squad.slice(0, 11);
+    const currentBench = squad.slice(11, 15);
 
-    const startingXI = [
-      gks[0],
-      ...defs.slice(0, 4),
-      ...mids.slice(0, 4),
-      ...fwds.slice(0, 2),
-    ];
-    const bench = [gks[1], defs[4], mids[4], fwds[2]];
-    const organizedSquad = [...startingXI, ...bench];
+    const benchGK = currentBench.find((p) => p.element_type === 1);
+    const outfieldBench = currentBench.filter((p) => p.element_type !== 1);
 
-    setSquad(organizedSquad);
+    const sortedBench = benchGK ? [benchGK, ...outfieldBench] : currentBench;
+
+    const finalOrder = [...currentStarters, ...sortedBench];
+
+    const syncedSquad = finalOrder.map((p, index) => ({
+      ...p,
+      starting: index < 11,
+    }));
+
+    setSquad(syncedSquad);
     setIsSaved(true);
     setView("pitch");
 
     if (viewingGw === currentActualGw) {
-      setBaseSquad(organizedSquad);
+      setBaseSquad(syncedSquad);
     } else {
       setPlannedSquads((prev) => ({
         ...prev,
-        [viewingGw]: organizedSquad,
+        [viewingGw]: syncedSquad,
       }));
       if (baseSquad.length === 0) {
-        setBaseSquad(organizedSquad);
+        setBaseSquad(syncedSquad);
       }
     }
   };
