@@ -1,71 +1,92 @@
-import { Calculator, Coins, TrendingUp } from "lucide-react";
+import { Calculator, TrendingUp } from "lucide-react";
 
-export default function PlanningStatsBanner({ squad }) {
+export default function PlanningStatsBanner({
+  squad,
+  fixtures = [],
+  gameweekId,
+}) {
   // We only care about the starting 11 for active points
   const starters = squad.slice(0, 11);
 
-  const stats = starters.reduce(
-    (acc, player) => {
-      if (player.is_placeholder) return acc;
+  // Helper: Estimate xP based on Difficulty
+  // FPL Difficulty is 1 (Easy) to 5 (Hard)
+  const calculateFixtureXp = (difficulty, role) => {
+    // Base "Appearance" points (2) + some probability of return
+    let base = 3.5;
 
-      // Calculate Cost (now_cost is usually in tenths, e.g., 125 = 12.5)
-      acc.cost += player.now_cost ? player.now_cost / 10 : 0;
+    // Adjust based on role (Defenders suffer more from hard fixtures due to CS loss)
+    if (role === 1 || role === 2) {
+      // GK or DEF
+      if (difficulty <= 2) base += 2.5; // Likely Clean Sheet
+      else if (difficulty === 3) base += 0.5;
+      else base -= 1.0; // Hard game
+    } else {
+      // MID or FWD
+      if (difficulty <= 2) base += 2.0; // Likely return
+      else if (difficulty === 3) base += 0.5;
+      else base -= 0.5;
+    }
 
-      // Calculate Expected Points (support ep_next or generic expected_points)
-      // FPL API returns ep_next as a string, so we parse it.
-      let xp = parseFloat(player.ep_next || player.expected_points || 0);
+    return Math.max(0, base); // Ensure no negative points
+  };
 
-      // handle Captain multiplier
-      if (player.is_captain) xp *= 2;
-      // Vice captain logic is complex (requires captain not playing),
-      // usually excluded from simple xP planning sums unless captain is injured.
+  // Calculate Total Expected Points
+  const totalXp = starters.reduce((acc, player) => {
+    if (player.is_placeholder) return acc;
 
-      acc.xp += xp;
+    // 1. Find Player's Fixtures for this specific Gameweek
+    const playerFixtures = fixtures.filter(
+      (f) =>
+        f.event === Number(gameweekId) &&
+        (f.team_h === player.team || f.team_a === player.team)
+    );
 
-      return acc;
-    },
-    { cost: 0, xp: 0 }
-  );
+    let calculatedXp = 0;
+
+    if (playerFixtures.length === 0) {
+      // BLANK GAMEWEEK (No match) -> 0 Points
+      calculatedXp = 0;
+    } else {
+      // Calculate for each match (handles Double Gameweeks automatically by summing them)
+      playerFixtures.forEach((fix) => {
+        const isHome = fix.team_h === player.team;
+        // Get the difficulty of the OPPONENT
+        const difficulty = isHome
+          ? fix.team_h_difficulty
+          : fix.team_a_difficulty;
+
+        calculatedXp += calculateFixtureXp(difficulty, player.element_type);
+      });
+    }
+
+    // Handle Captain Multiplier
+    if (player.is_captain) calculatedXp *= 2;
+
+    return acc + calculatedXp;
+  }, 0);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-4 flex items-center justify-between">
-      {/* Left: Label */}
-      <div className="flex items-center gap-2">
-        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
-          <Calculator size={18} />
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-4 flex items-center justify-between transition-all">
+      {/* Left Side: Label & Icon */}
+      <div className="flex items-center gap-3">
+        <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-lg text-green-600 dark:text-green-400">
+          <Calculator size={20} />
         </div>
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            Planning Mode
+            GW {gameweekId} Plan
           </h3>
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-            Gameweek Preview
+          <p className="text-base font-bold text-gray-900 dark:text-white">
+            Projected Points
           </p>
         </div>
       </div>
 
-      {/* Right: Stats Grid */}
-      <div className="flex items-center gap-4 sm:gap-8">
-        {/* Team Value (Starters) */}
-        <div className="text-right">
-          <div className="flex items-center justify-end gap-1 text-[10px] text-gray-500 uppercase font-bold">
-            <Coins size={12} />
-            <span>Cost</span>
-          </div>
-          <div className="text-lg font-bold text-gray-900 dark:text-white leading-none">
-            £{stats.cost.toFixed(1)}m
-          </div>
-        </div>
-
-        {/* Expected Points */}
-        <div className="text-right">
-          <div className="flex items-center justify-end gap-1 text-[10px] text-gray-500 uppercase font-bold">
-            <TrendingUp size={12} />
-            <span>Exp. Points</span>
-          </div>
-          <div className="text-2xl font-black text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 leading-none">
-            {stats.xp.toFixed(1)}
-          </div>
+      {/* Right Side: Big Number */}
+      <div className="flex items-center gap-2">
+        <TrendingUp size={18} className="text-green-500 animate-pulse" />
+        <div className="text-4xl font-black bg-clip-text text-green-400 leading-none drop-shadow-sm">
+          {totalXp.toFixed(1)}
         </div>
       </div>
     </div>

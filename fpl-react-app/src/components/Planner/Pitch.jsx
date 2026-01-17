@@ -271,7 +271,11 @@ export default function Pitch({
             gameweekId={gameweekId}
           />
         ) : (
-          <PlanningStatsBanner squad={squad} />
+          <PlanningStatsBanner
+            squad={squad}
+            fixtures={fixtures}
+            gameweekId={gameweekId}
+          />
         )}
 
         {/* PITCH AREA */}
