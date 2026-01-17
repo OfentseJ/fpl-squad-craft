@@ -909,6 +909,7 @@ export default function Planner({ data }) {
                 squad={squad}
                 saved={isSaved}
                 gameweekId={viewingGw}
+                currentGw={currentActualGw}
                 onRemovePlayer={removePlayer}
                 onPlaceholderClick={handlePlaceholderClick}
                 substitutionSource={substitutionSource}

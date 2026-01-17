@@ -3,6 +3,7 @@ import PlayerShirt from "./PlayerShirt";
 import { useEffect, useState, useMemo } from "react";
 import { useFPLApi } from "../../hooks/useFPLApi";
 import LivePointsBanner from "./LivePointsBanner";
+import PlanningStatsBanner from "./PlanningStatsBanner";
 
 // ... [HalfPitchBackground and Placeholder components remain unchanged] ...
 function HalfPitchBackground() {
@@ -81,6 +82,7 @@ export default function Pitch({
   squad,
   saved,
   gameweekId,
+  currentGw,
   onPlaceholderClick,
   substitutionSource,
   onSubstituteComplete,
@@ -90,6 +92,7 @@ export default function Pitch({
   const [fixtures, setFixtures] = useState([]);
   const [liveStats, setLiveStats] = useState({});
 
+  const isPlanningMode = Number(gameweekId) > Number(currentGw);
   // Destructure the specific methods from your provided hook
   const { getFixtures, getLive } = useFPLApi();
 
@@ -260,12 +263,16 @@ export default function Pitch({
   return (
     <>
       <div className="w-full mx-auto max-w-md sm:max-w-xl md:max-w-3xl">
-        {/* 2. INSERT BANNER HERE */}
-        <LivePointsBanner
-          squad={squad}
-          liveStats={liveStats}
-          gameweekId={gameweekId}
-        />
+        {/* POINTS BANNER */}
+        {!isPlanningMode ? (
+          <LivePointsBanner
+            squad={squad}
+            liveStats={liveStats}
+            gameweekId={gameweekId}
+          />
+        ) : (
+          <PlanningStatsBanner squad={squad} />
+        )}
 
         {/* PITCH AREA */}
         <div className="relative w-full aspect-3/4 sm:aspect-4/3 rounded-xl overflow-hidden shadow-2xl border-4 border-white bg-[#00b159]">
