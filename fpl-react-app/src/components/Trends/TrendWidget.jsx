@@ -8,12 +8,11 @@ export default function TrendWidget({
   players,
   type,
   teams,
-  colorClass, // e.g., "bg-green-500" (Used for the background tint)
-  iconColor, // NEW: e.g., "text-green-600" (Used for the icon itself)
+  colorClass,
+  iconColor,
   onPlayerClick,
 }) {
   const { getPlayerImageUrl, getTeamBadgeUrl } = useFPLApi();
-  // Using the robust watchlist hook logic
   const { watchlist, toggleWatchlist } = useWatchlist();
 
   if (!players || players.length === 0) return null;

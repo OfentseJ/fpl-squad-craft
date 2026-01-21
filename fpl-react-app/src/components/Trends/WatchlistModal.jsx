@@ -1,6 +1,6 @@
 import { X, Trash2, ArrowRight } from "lucide-react";
 import { useFPLApi } from "../../hooks/useFPLApi";
-import { useWatchlist } from "../../hooks/useWatchList";
+import { useWatchlist } from "../../hooks/useWatchlist";
 
 export default function WatchlistModal({
   allPlayers,
