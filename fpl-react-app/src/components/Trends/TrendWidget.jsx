@@ -8,11 +8,12 @@ export default function TrendWidget({
   players,
   type,
   teams,
-  colorClass, // e.g., "bg-green-500" (for background opacity)
-  iconColor, // NEW: e.g., "text-green-500" (explicitly passed)
+  colorClass, // e.g., "bg-green-500" (Used for the background tint)
+  iconColor, // NEW: e.g., "text-green-600" (Used for the icon itself)
   onPlayerClick,
 }) {
   const { getPlayerImageUrl, getTeamBadgeUrl } = useFPLApi();
+  // Using the robust watchlist hook logic
   const { watchlist, toggleWatchlist } = useWatchlist();
 
   if (!players || players.length === 0) return null;
@@ -24,7 +25,7 @@ export default function TrendWidget({
         <div
           className={`p-3 rounded-xl ${colorClass} bg-opacity-10 dark:bg-opacity-20`}
         >
-          {/* Use the explicit iconColor prop here */}
+          {/* We apply the explicit text color class here */}
           <Icon size={24} className={iconColor} />
         </div>
         <h3 className="font-bold text-xl text-gray-800 dark:text-white">
@@ -36,6 +37,7 @@ export default function TrendWidget({
       <div className="flex-1 p-3 space-y-2">
         {players.map((player, index) => {
           const team = teams?.find((t) => t.id === player.team);
+          // Check watchlist directly from the array for instant reactivity
           const isWatched = watchlist.includes(player.id.toString());
 
           // Determine display logic
