@@ -97,7 +97,7 @@ export default function Home({ data }) {
                 {currentGW.is_current
                   ? "● LIVE NOW"
                   : `Next Deadline: ${new Date(
-                      currentGW.deadline_time
+                      currentGW.deadline_time,
                     ).toLocaleDateString()}`}
               </div>
             </div>

@@ -25,7 +25,7 @@ import { getCurrentGameweek } from "../utils/FplUtils";
 import GameweekNavigator from "../components/Planner/GameweekNavigator";
 import { usePlannerStorage } from "../hooks/usePlannerStorage";
 import TeamInfoBanner from "../components/Planner/TeamInfoBanner";
-import LoadingSkeleton from "../components/LoadingSkeleton";
+import LoadingSkeleton from "../components/Skeletons/LoadingSkeleton";
 import BankEditModal from "../components/Planner/BankEditModal";
 import FDRModal from "../components/Planner/FDRModal";
 import TeamValueEditModal from "../components/Planner/TeamValueEditModal";
@@ -355,7 +355,7 @@ export default function Planner({ data }) {
 
     if (viewingGw === currentActualGw) {
       const confirmSwitch = window.confirm(
-        "Modifications are restricted on the Active Squad.\n\nSwitch to Planning Mode (Next GW) to make changes?"
+        "Modifications are restricted on the Active Squad.\n\nSwitch to Planning Mode (Next GW) to make changes?",
       );
       if (confirmSwitch) {
         setViewingGw(currentActualGw + 1);
@@ -383,27 +383,27 @@ export default function Planner({ data }) {
     if (bank - player.now_cost < 0) {
       alert(
         `Not enough money! You need £${((player.now_cost - bank) / 10).toFixed(
-          1
-        )}m more.`
+          1,
+        )}m more.`,
       );
       return false;
     }
 
     const playersFromSameTeam = squad.filter(
-      (p) => !p.is_placeholder && p.team === player.team
+      (p) => !p.is_placeholder && p.team === player.team,
     ).length;
 
     if (playersFromSameTeam >= 3) {
       const teamName =
         data?.teams?.find((t) => t.id === player.team)?.name || "this team";
       alert(
-        `You cannot have more than 3 players from ${teamName}.\nPlease remove a player from ${teamName} first.`
+        `You cannot have more than 3 players from ${teamName}.\nPlease remove a player from ${teamName} first.`,
       );
       return false;
     }
 
     const emptySlotIndex = squad.findIndex(
-      (p) => p.is_placeholder && p.element_type === player.element_type
+      (p) => p.is_placeholder && p.element_type === player.element_type,
     );
 
     if (emptySlotIndex === -1) {
@@ -411,27 +411,27 @@ export default function Planner({ data }) {
 
       if (isSquadFull) {
         alert(
-          "Squad is full! You have reached the maximum of 15 players.\nPlease remove a player to make room."
+          "Squad is full! You have reached the maximum of 15 players.\nPlease remove a player to make room.",
         );
       } else {
         const positionName =
           player.element_type === 1
             ? "Goalkeepers"
             : player.element_type === 2
-            ? "Defenders"
-            : player.element_type === 3
-            ? "Midfielders"
-            : "Forwards";
+              ? "Defenders"
+              : player.element_type === 3
+                ? "Midfielders"
+                : "Forwards";
         alert(
           `You cannot add more ${positionName}.\nPlease remove a ${
             player.element_type === 1
               ? "GKP"
               : player.element_type === 2
-              ? "DEF"
-              : player.element_type === 3
-              ? "MID"
-              : "FWD"
-          } first.`
+                ? "DEF"
+                : player.element_type === 3
+                  ? "MID"
+                  : "FWD"
+          } first.`,
         );
       }
       return false;
@@ -465,7 +465,7 @@ export default function Planner({ data }) {
     const newBank = bank + refund;
     const placeholder = createPlaceholder(
       playerIndex,
-      playerToRemove.element_type
+      playerToRemove.element_type,
     );
     const newSquad = [...squad];
     newSquad[playerIndex] = placeholder;
@@ -683,7 +683,7 @@ export default function Planner({ data }) {
   const handleSetCaptain = (playerId) => {
     if (!ensurePlanningMode()) return;
     const targetIsCurrentVC = squad.find(
-      (p) => p.id === playerId
+      (p) => p.id === playerId,
     )?.is_vice_captain;
     const newSquad = squad.map((p) => {
       if (p.id === playerId)
@@ -702,7 +702,7 @@ export default function Planner({ data }) {
   const handleSetViceCaptain = (playerId) => {
     if (!ensurePlanningMode()) return;
     const targetIsCurrentCaptain = squad.find(
-      (p) => p.id === playerId
+      (p) => p.id === playerId,
     )?.is_captain;
     const newSquad = squad.map((p) => {
       if (p.id === playerId)
@@ -1053,7 +1053,7 @@ export default function Planner({ data }) {
                           <img
                             src={getShirtUrl(
                               data.teams.find((t) => t.id === p.team) || [],
-                              p.element_type === 1
+                              p.element_type === 1,
                             )}
                             alt="kit"
                             className="object-contain drop-shadow-sm group-hover:scale-110 transition-transform"
@@ -1086,10 +1086,10 @@ export default function Planner({ data }) {
                               {p.element_type === 1
                                 ? "GKP"
                                 : p.element_type === 2
-                                ? "DEF"
-                                : p.element_type === 3
-                                ? "MID"
-                                : "FWD"}
+                                  ? "DEF"
+                                  : p.element_type === 3
+                                    ? "MID"
+                                    : "FWD"}
                             </span>
                             {teamFull && (
                               <span className="text-red-500 font-bold ml-1">

@@ -8,11 +8,12 @@ export default function TrendWidget({
   players,
   type,
   teams,
-  colorClass,
+  colorClass, // e.g., "bg-green-500" (for background opacity)
+  iconColor, // NEW: e.g., "text-green-500" (explicitly passed)
   onPlayerClick,
 }) {
   const { getPlayerImageUrl, getTeamBadgeUrl } = useFPLApi();
-  const { isInWatchlist, toggleWatchlist } = useWatchlist();
+  const { watchlist, toggleWatchlist } = useWatchlist();
 
   if (!players || players.length === 0) return null;
 
@@ -23,7 +24,8 @@ export default function TrendWidget({
         <div
           className={`p-3 rounded-xl ${colorClass} bg-opacity-10 dark:bg-opacity-20`}
         >
-          <Icon size={24} className={colorClass.replace("bg-", "text-")} />
+          {/* Use the explicit iconColor prop here */}
+          <Icon size={24} className={iconColor} />
         </div>
         <h3 className="font-bold text-xl text-gray-800 dark:text-white">
           {title}
@@ -34,7 +36,7 @@ export default function TrendWidget({
       <div className="flex-1 p-3 space-y-2">
         {players.map((player, index) => {
           const team = teams?.find((t) => t.id === player.team);
-          const isWatched = isInWatchlist(player.id);
+          const isWatched = watchlist.includes(player.id.toString());
 
           // Determine display logic
           let displayValue = "";
@@ -82,12 +84,10 @@ export default function TrendWidget({
               key={player.id}
               className="flex items-center gap-3 p-2 pr-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl transition-all group relative"
             >
-              {/* Rank Number */}
               <span className="text-sm font-bold text-gray-400 dark:text-gray-500 w-5 text-center shrink-0">
                 {index + 1}
               </span>
 
-              {/* Watchlist Button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -105,7 +105,6 @@ export default function TrendWidget({
                 />
               </button>
 
-              {/* Avatar - Large, No Background, Floating */}
               <div
                 onClick={() => onPlayerClick && onPlayerClick(player)}
                 className="relative w-16 h-16 shrink-0 cursor-pointer"
@@ -116,7 +115,6 @@ export default function TrendWidget({
                   className="w-full h-full object-contain drop-shadow-md transition-transform group-hover:scale-110"
                   loading="lazy"
                 />
-                {/* Team Badge */}
                 <img
                   src={getTeamBadgeUrl(team?.code)}
                   className="absolute bottom-0 right-0 w-5 h-5 bg-white dark:bg-gray-900 rounded-full p-0.5 shadow-sm"
@@ -124,7 +122,6 @@ export default function TrendWidget({
                 />
               </div>
 
-              {/* Info (Clickable) */}
               <div
                 className="flex-1 min-w-0 cursor-pointer"
                 onClick={() => onPlayerClick && onPlayerClick(player)}
@@ -152,7 +149,6 @@ export default function TrendWidget({
                 </div>
               </div>
 
-              {/* Metric */}
               <div className="text-right shrink-0">
                 <p className={`text-lg font-bold leading-tight ${valueColor}`}>
                   {displayValue}

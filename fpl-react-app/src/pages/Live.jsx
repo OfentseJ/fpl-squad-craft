@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getCurrentGameweek } from "../utils/FplUtils";
-import LoadingSkeleton from "../components/LoadingSkeleton";
+import LoadingSkeleton from "../components/Skeletons/LoadingSkeleton";
 import ErrorDisplay from "../components/ErrorDisplay";
 import Footer from "../components/Footer";
 import { useFPLApi } from "../hooks/useFPLApi";
