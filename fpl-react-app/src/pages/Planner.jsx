@@ -256,17 +256,28 @@ export default function Planner({ data }) {
     // 1. Update Local View
     setSquad(newSquad);
 
-    // Use the provided newBank or fall back to current state (which might be stale, so prefer passing it)
+    // Use the provided newBank or fall back to current state
     const activeBank = newBank !== null ? newBank : bank;
 
-    // 2. Define the "Source of Truth" for the ripple
-    // We compare newSquad against the 'squad' state (which is now the "Old State")
+    // 2. Define the "Source of Truth"
     const oldSquad = squad;
 
     // 3. Update the Current GW Storage
     if (viewingGw === currentActualGw) {
       setBaseSquad(newSquad);
     }
+
+    // --- PRE-CALCULATION: Identify Transfers by ID ---
+    // We create a map of { [SoldPlayerID]: IncomingPlayerObject }
+    // This allows us to find the sold player in the future, even if they moved indices (bench/start).
+    const transfersMap = {};
+    oldSquad.forEach((oldP, idx) => {
+      const newP = newSquad[idx];
+      // If the ID changed, record the transfer
+      if (oldP.id !== newP.id) {
+        transfersMap[oldP.id] = newP;
+      }
+    });
 
     setPlannedSquads((prev) => {
       const nextPlanned = { ...prev };
@@ -278,70 +289,74 @@ export default function Planner({ data }) {
       };
 
       // 4. THE RIPPLE LOOP
-      // Propagate changes to all FUTURE planned gameweeks
       const maxGw = 38;
-
-      // We carry the 'current' bank forward as we ripple
       let runningBank = activeBank;
 
       for (let gw = viewingGw + 1; gw <= maxGw; gw++) {
-        // If this future GW hasn't been initialized yet, stop rippling
         if (!nextPlanned[gw]) break;
 
         const futureData = nextPlanned[gw];
         const futureSquad = Array.isArray(futureData)
           ? futureData
           : futureData.squad;
-        // If the future week has its own bank value, we might need to adjust it relative to our change
-        // For simplicity: if we changed bank NOW, we apply the difference to future.
+
+        // Bank Handling
         const oldBank = Array.isArray(futureData)
           ? runningBank
           : futureData.bank;
-
-        // Calculate the difference caused by our current move (e.g., -5.0m or +2.0m)
         const bankDelta = activeBank - bank;
 
-        // Map the future squad based on our new changes
+        // Map the future squad
         const updatedFutureSquad = futureSquad.map((futurePlayer, index) => {
-          const newPlayer = newSquad[index]; // The player currently in this slot (post-edit)
-          const oldPlayer = oldSquad[index]; // The player previously in this slot (pre-edit)
+          const newPlayer = newSquad[index]; // Player at this slot in CURRENT view
 
-          // CASE A: We swapped positions (Starters/Bench) or Captaincy
-          // If the player IDs match, strictly sync the "Status"
+          // --- PRIORITY CHECK 1: Global ID Replacement ---
+          // Was this specific future player sold in the past?
+          // (This handles the scenario where you subbed them in the future, so indices don't match)
+          if (transfersMap[futurePlayer.id]) {
+            const replacement = transfersMap[futurePlayer.id];
+            return {
+              ...replacement,
+              // IMPORTANT: Keep the future state (Starting/Bench/Captain)
+              // so the new player inherits the position of the guy they replaced.
+              starting: futurePlayer.starting,
+              is_captain: futurePlayer.is_captain,
+              is_vice_captain: futurePlayer.is_vice_captain,
+            };
+          }
+
+          // --- PRIORITY CHECK 2: Positional/Status Updates ---
+          // If indices match and ID matches, sync status (Captaincy/Bench swaps)
           if (futurePlayer.id === newPlayer.id) {
             return {
               ...futurePlayer,
               starting: newPlayer.starting,
               is_captain: newPlayer.is_captain,
               is_vice_captain: newPlayer.is_vice_captain,
-              // Keep futurePlayer specific data (like fixtures) intact
             };
           }
 
-          // CASE B: We made a Transfer (ID changed in this slot)
-          // If the future slot was identical to the old slot (meaning it was just inheriting),
-          // we should ripple the new transfer forward.
-          // BUT if the future slot is DIFFERENT from the old slot (meaning user made a transfer in future),
-          // we leave it alone.
-          const isSlotInherited = futurePlayer.id === oldPlayer.id; // OR both are placeholders
+          // --- PRIORITY CHECK 3: Index-based Inheritance ---
+          // Keep this for cases where we swap slot placeholders or simple transfers
+          // where the future player hasn't moved indices.
+          // Note: The 'transfersMap' check above catches most logic, but this covers
+          // cases where the slot itself was inherited.
+          const oldPlayer = oldSquad[index];
+          const isSlotInherited = futurePlayer.id === oldPlayer.id;
 
           if (isSlotInherited) {
-            // Future was just copying us, so update it to our new reality
             return newPlayer;
           }
 
-          // CASE C: Future slot has diverged (Specific future plan). Keep it.
+          // Case C: Future slot has diverged. Keep it.
           return futurePlayer;
         });
 
-        // Update the future week
         nextPlanned[gw] = {
           squad: updatedFutureSquad,
-          // Apply the delta to the future bank (preserving future trades)
           bank: oldBank + bankDelta,
         };
 
-        // Update running bank for next iteration if needed
         runningBank = nextPlanned[gw].bank;
       }
 

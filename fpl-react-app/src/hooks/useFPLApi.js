@@ -28,34 +28,34 @@ export function useFPLApi() {
         throw error;
       }
     },
-    [CORS_PROXY]
+    [CORS_PROXY],
   );
 
   const getBootstrap = useCallback(
     () =>
       fetchWithCache(
         "bootstrap",
-        "https://fantasy.premierleague.com/api/bootstrap-static/"
+        "https://fantasy.premierleague.com/api/bootstrap-static/",
       ),
-    [fetchWithCache]
+    [fetchWithCache],
   );
 
   const getLive = useCallback(
     (gw) =>
       fetchWithCache(
         "live-" + gw,
-        `https://fantasy.premierleague.com/api/event/${gw}/live/`
+        `https://fantasy.premierleague.com/api/event/${gw}/live/`,
       ),
-    [fetchWithCache]
+    [fetchWithCache],
   );
 
   const getFixtures = useCallback(
     () =>
       fetchWithCache(
         "fixtures",
-        "https://fantasy.premierleague.com/api/fixtures/"
+        "https://fantasy.premierleague.com/api/fixtures/",
       ),
-    [fetchWithCache]
+    [fetchWithCache],
   );
 
   const getShirtUrl = useCallback((team, isGK) => {
@@ -85,7 +85,7 @@ export function useFPLApi() {
 
         if (!response.ok) {
           throw new Error(
-            "Failed to fetch team data. Please check the Team ID."
+            "Failed to fetch team data. Please check the Team ID.",
           );
         }
 
@@ -96,7 +96,7 @@ export function useFPLApi() {
         throw error;
       }
     },
-    [CORS_PROXY]
+    [CORS_PROXY],
   );
 
   const getUserTeamInfo = useCallback(
@@ -116,7 +116,7 @@ export function useFPLApi() {
         throw error;
       }
     },
-    [CORS_PROXY]
+    [CORS_PROXY],
   );
 
   const getEntryHistory = useCallback(
@@ -136,7 +136,7 @@ export function useFPLApi() {
         throw error;
       }
     },
-    [CORS_PROXY]
+    [CORS_PROXY],
   );
 
   // --- NEW FUNCTION ADDED HERE ---
@@ -144,9 +144,9 @@ export function useFPLApi() {
     (playerId) =>
       fetchWithCache(
         `player-history-${playerId}`,
-        `https://fantasy.premierleague.com/api/element-summary/${playerId}/`
+        `https://fantasy.premierleague.com/api/element-summary/${playerId}/`,
       ),
-    [fetchWithCache]
+    [fetchWithCache],
   );
 
   return {
