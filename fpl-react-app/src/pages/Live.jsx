@@ -10,7 +10,9 @@ export default function Live({ data }) {
   const [livePlayers, setLivePlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { getLive } = useFPLApi();
+
+  // 1. Destructure getPlayerImageUrl from your hook
+  const { getLive, getPlayerImageUrl } = useFPLApi();
 
   const currentGW = getCurrentGameweek(data?.events);
 
@@ -22,14 +24,12 @@ export default function Live({ data }) {
 
     getLive(currentGW.id)
       .then((live) => {
-        // Merge Live stats with Static Info for ALL players
-        // We do NOT slice here because we need the full dataset to find differentials
         const merged = Object.values(live.elements)
           .map((p) => ({
             ...p,
             info: data.elements.find((pl) => pl.id === p.id),
           }))
-          .filter((p) => p.info) // Ensure data integrity
+          .filter((p) => p.info)
           .sort((a, b) => b.stats.total_points - a.stats.total_points);
 
         setLivePlayers(merged);
@@ -41,14 +41,11 @@ export default function Live({ data }) {
       });
   }, [currentGW?.id, data?.elements, getLive]);
 
-  // --- WIDGET LOGIC ---
   const widgets = useMemo(() => {
     if (!livePlayers.length) return null;
 
-    // 1. MVP (Highest Points)
     const mvp = livePlayers[0];
 
-    // 2. Template Watch (High ownership > 20%, sorted by ownership)
     const template = livePlayers
       .filter((p) => parseFloat(p.info.selected_by_percent) > 20)
       .sort(
@@ -56,13 +53,12 @@ export default function Live({ data }) {
           parseFloat(b.info.selected_by_percent) -
           parseFloat(a.info.selected_by_percent),
       )
-      .slice(0, 3); // Top 3 most owned
+      .slice(0, 3);
 
-    // 3. Differentials (Low Ownership < 10%, High Points, sorted by Points)
     const differentials = livePlayers
       .filter((p) => parseFloat(p.info.selected_by_percent) < 10)
       .sort((a, b) => b.stats.total_points - a.stats.total_points)
-      .slice(0, 3); // Top 3 scoring differentials
+      .slice(0, 3);
 
     return { mvp, template, differentials };
   }, [livePlayers]);
@@ -70,7 +66,6 @@ export default function Live({ data }) {
   if (loading) return <LoadingSkeleton />;
   if (error) return <ErrorDisplay message={error} />;
 
-  // If no players have points yet (start of GW or API delay)
   if (!livePlayers?.length) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-gray-500">
@@ -101,8 +96,8 @@ export default function Live({ data }) {
         {widgets && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* WIDGET 1: MVP */}
-            <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 p-5 rounded-2xl border border-yellow-200 dark:border-yellow-700/50 shadow-sm relative overflow-hidden group">
-              <div className="flex justify-between items-start mb-4">
+            <div className="bg-linear-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 p-5 rounded-2xl border border-yellow-200 dark:border-yellow-700/50 shadow-sm relative overflow-hidden group">
+              <div className="flex justify-between items-start mb-4 relative z-10">
                 <div className="bg-yellow-100 dark:bg-yellow-900/50 p-2 rounded-lg text-yellow-700 dark:text-yellow-400">
                   <Trophy size={20} />
                 </div>
@@ -110,27 +105,35 @@ export default function Live({ data }) {
                   GW MVP
                 </span>
               </div>
-              <div className="relative z-10">
-                <h3 className="text-xl font-black text-gray-900 dark:text-white truncate">
-                  {widgets.mvp.info.web_name}
-                </h3>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  {
-                    data.teams.find((t) => t.id === widgets.mvp.info.team)
-                      ?.short_name
-                  }
-                </p>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-yellow-600 dark:text-yellow-400">
-                    {widgets.mvp.stats.total_points}
-                  </span>
-                  <span className="text-sm font-bold text-gray-400 uppercase">
-                    Pts
-                  </span>
+
+              <div className="flex items-end gap-4 relative z-10">
+                {/* MVP Image */}
+                <div className="w-20 h-24 overflow-hidden rounded-lg bg-yellow-200/50">
+                  <img
+                    src={getPlayerImageUrl(widgets.mvp.info.code)}
+                    alt={widgets.mvp.info.web_name}
+                    className="w-full h-full object-cover object-top"
+                    loading="lazy"
+                  />
+                </div>
+
+                <div className="pb-1">
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white truncate max-w-30">
+                    {widgets.mvp.info.web_name}
+                  </h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-yellow-600 dark:text-yellow-400">
+                      {widgets.mvp.stats.total_points}
+                    </span>
+                    <span className="text-sm font-bold text-gray-400 uppercase">
+                      Pts
+                    </span>
+                  </div>
                 </div>
               </div>
+
               {/* Background Deco */}
-              <div className="absolute -bottom-6 -right-6 text-yellow-500/10 dark:text-yellow-500/5 transform rotate-12 group-hover:scale-110 transition-transform duration-500">
+              <div className="absolute -bottom-6 -right-6 text-yellow-500/10 dark:text-yellow-500/5 transform rotate-12 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                 <Trophy size={140} />
               </div>
             </div>
@@ -151,13 +154,22 @@ export default function Live({ data }) {
                     key={p.id}
                     className="flex justify-between items-center text-sm border-b border-gray-50 dark:border-gray-700/50 last:border-0 pb-2 last:pb-0"
                   >
-                    <div className="flex flex-col">
-                      <span className="font-bold text-gray-800 dark:text-gray-200">
-                        {p.info.web_name}
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        {p.info.selected_by_percent}% Owned
-                      </span>
+                    <div className="flex items-center gap-3">
+                      {/* Small Round Image */}
+                      <img
+                        src={getPlayerImageUrl(p.info.code)}
+                        alt={p.info.web_name}
+                        className="w-8 h-8 rounded-full bg-gray-100 object-cover object-top"
+                        loading="lazy"
+                      />
+                      <div className="flex flex-col">
+                        <span className="font-bold text-gray-800 dark:text-gray-200">
+                          {p.info.web_name}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {p.info.selected_by_percent}% Owned
+                        </span>
+                      </div>
                     </div>
                     <div
                       className={`font-bold ${
@@ -189,13 +201,22 @@ export default function Live({ data }) {
                     key={p.id}
                     className="flex justify-between items-center text-sm border-b border-gray-50 dark:border-gray-700/50 last:border-0 pb-2 last:pb-0"
                   >
-                    <div className="flex flex-col">
-                      <span className="font-bold text-gray-800 dark:text-gray-200">
-                        {p.info.web_name}
-                      </span>
-                      <span className="text-[10px] text-purple-500 font-medium">
-                        Only {p.info.selected_by_percent}%
-                      </span>
+                    <div className="flex items-center gap-3">
+                      {/* Small Round Image */}
+                      <img
+                        src={getPlayerImageUrl(p.info.code)}
+                        alt={p.info.web_name}
+                        className="w-8 h-8 rounded-full bg-gray-100 object-cover object-top"
+                        loading="lazy"
+                      />
+                      <div className="flex flex-col">
+                        <span className="font-bold text-gray-800 dark:text-gray-200">
+                          {p.info.web_name}
+                        </span>
+                        <span className="text-[10px] text-purple-500 font-medium">
+                          Only {p.info.selected_by_percent}%
+                        </span>
+                      </div>
                     </div>
                     <div className="font-bold text-green-500">
                       {p.stats.total_points} pts
@@ -227,10 +248,20 @@ export default function Live({ data }) {
                   <div className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-400">
                     {index + 1}
                   </div>
+
+                  {/* Player Image - Main List */}
+                  <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-full overflow-hidden shrink-0 border border-gray-200 dark:border-gray-600">
+                    <img
+                      src={getPlayerImageUrl(p.info.code)}
+                      alt={p.info.web_name}
+                      className="w-full h-full object-cover object-top"
+                      loading="lazy"
+                    />
+                  </div>
+
                   <div>
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
                       {p.info.web_name}
-                      {/* Dream Team Star */}
                       {p.stats.in_dreamteam && (
                         <Star
                           size={16}
