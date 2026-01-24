@@ -5,6 +5,7 @@ import ErrorDisplay from "../components/ErrorDisplay";
 import Footer from "../components/Footer";
 import { useFPLApi } from "../hooks/useFPLApi";
 import { Trophy, Users, TrendingUp, Star, AlertCircle } from "lucide-react";
+import LiveSkeleton from "../components/Skeletons/LiveSkeleton";
 
 export default function Live({ data }) {
   const [livePlayers, setLivePlayers] = useState([]);
@@ -63,7 +64,7 @@ export default function Live({ data }) {
     return { mvp, template, differentials };
   }, [livePlayers]);
 
-  if (loading) return <LoadingSkeleton />;
+  if (loading) return <LiveSkeleton />;
   if (error) return <ErrorDisplay message={error} />;
 
   if (!livePlayers?.length) {
