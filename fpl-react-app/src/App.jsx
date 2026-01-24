@@ -9,6 +9,8 @@ import Trends from "./pages/Trends";
 import Live from "./pages/Live";
 import Planner from "./pages/Planner";
 import { useFPLApi } from "./hooks/useFPLApi";
+import GlobalSkeleton from "./components/Skeletons/GlobalSkeleton";
+import LiveSkeleton from "./components/Skeletons/LiveSkeleton";
 
 export default function App() {
   const [data, setData] = useState(null);
@@ -48,7 +50,7 @@ export default function App() {
              */}
             <Route
               path="/"
-              element={loading ? <LoadingSkeleton /> : <Home data={data} />}
+              element={loading ? <GlobalSkeleton /> : <Home data={data} />}
             />
 
             {/* TRENDS: Uses the NEW specific TrendSkeleton while loading
@@ -77,7 +79,7 @@ export default function App() {
              */}
             <Route
               path="/live"
-              element={loading ? <LoadingSkeleton /> : <Live data={data} />}
+              element={loading ? <LiveSkeleton /> : <Live data={data} />}
             />
             <Route
               path="/planner"
