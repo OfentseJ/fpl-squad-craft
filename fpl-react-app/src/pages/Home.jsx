@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"; // 1. Import Hooks
+import { useState, useEffect } from "react";
 import {
   TrendingUp,
   Activity,
@@ -14,44 +14,38 @@ import HomeSkeleton from "../components/Skeletons/HomeSkeleton";
 
 export default function Home({ data }) {
   const currentGW = getCurrentGameweek(data?.events);
-
-  // 2. Find specifically the NEXT gameweek for the deadline
-  // (currentGW might be the 'active' one, but we want the deadline of the upcoming one)
   const nextGW = data?.events?.find((e) => e.is_next);
 
-  // 3. Countdown State
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  });
+  // Countdown State
+  const [hoursLeft, setHoursLeft] = useState(null);
+  const [timeLeft, setTimeLeft] = useState({ minutes: 0, seconds: 0 });
 
-  // 4. Countdown Logic
+  // Countdown Logic
   useEffect(() => {
     if (!nextGW?.deadline_time) return;
 
-    const calculateTimeLeft = () => {
-      const difference = +new Date(nextGW.deadline_time) - +new Date();
+    const calculateTime = () => {
+      const difference = new Date(nextGW.deadline_time) - new Date();
 
       if (difference > 0) {
-        return {
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60),
-        };
+        // Calculate Total Hours (not just hours in a day)
+        const totalHours = Math.floor(difference / (1000 * 60 * 60));
+        const minutes = Math.floor((difference / 1000 / 60) % 60);
+        const seconds = Math.floor((difference / 1000) % 60);
+
+        setHoursLeft(totalHours);
+        setTimeLeft({ minutes, seconds });
+      } else {
+        setHoursLeft(0);
+        setTimeLeft({ minutes: 0, seconds: 0 });
       }
-      return { days: 0, hours: 0, minutes: 0, seconds: 0 };
     };
 
-    // Initial call
-    setTimeLeft(calculateTimeLeft());
+    // Initial call to avoid 1-second delay
+    calculateTime();
 
     // Update every second
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
+    const timer = setInterval(calculateTime, 1000);
 
     return () => clearInterval(timer);
   }, [nextGW]);
@@ -83,7 +77,7 @@ export default function Home({ data }) {
     },
   ];
 
-  // Helper to pad numbers (e.g., 05 instead of 5)
+  // Helper to pad numbers (e.g., 5 -> 05)
   const pad = (num) => String(num).padStart(2, "0");
 
   if (!data || !data.events) {
@@ -93,7 +87,8 @@ export default function Home({ data }) {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       {/* Hero Section */}
-      <div className="bg-linear-to-br from-green-600 to-emerald-900 text-white py-16 sm:py-24 px-6 text-center shadow-lg relative overflow-hidden">
+      <div className="bg-linear-to-br from-green-600 to-emerald-900 text-white py-12 sm:py-20 px-6 text-center shadow-lg relative overflow-hidden">
+        {/* Subtle Background Pattern */}
         <div
           className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none"
           style={{
@@ -103,8 +98,41 @@ export default function Home({ data }) {
           }}
         ></div>
 
-        <div className="relative z-10 max-w-3xl mx-auto">
-          <h2 className="text-4xl sm:text-5xl font-black mb-6 tracking-tight drop-shadow-sm">
+        <div className="relative z-10 max-w-4xl mx-auto">
+          {/* THE BIG COUNTDOWN CLOCK */}
+          {hoursLeft !== null && (
+            <div className="mb-10 inline-flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <span className="text-green-300 text-xs font-bold uppercase tracking-[0.3em] mb-2 flex items-center gap-2">
+                <Clock size={14} /> Deadline: Gameweek {nextGW?.id}
+              </span>
+
+              <div className="flex items-baseline gap-2 sm:gap-4 font-mono text-5xl sm:text-7xl font-black drop-shadow-xl bg-white/10 px-6 py-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+                <div className="flex flex-col items-center">
+                  <span>{pad(hoursLeft)}</span>
+                </div>
+                <span className="text-green-400/50 text-3xl sm:text-5xl -translate-y-2">
+                  :
+                </span>
+                <div className="flex flex-col items-center">
+                  <span>{pad(timeLeft.minutes)}</span>
+                </div>
+                <span className="text-green-400/50 text-3xl sm:text-5xl -translate-y-2">
+                  :
+                </span>
+                <div className="flex flex-col items-center">
+                  <span>{pad(timeLeft.seconds)}</span>
+                </div>
+              </div>
+
+              <div className="flex w-full justify-between px-8 sm:px-12 mt-2 text-[10px] sm:text-xs font-bold text-green-200/70 uppercase tracking-widest">
+                <span>Hours</span>
+                <span>Mins</span>
+                <span>Secs</span>
+              </div>
+            </div>
+          )}
+
+          <h2 className="text-3xl sm:text-5xl font-black mb-6 tracking-tight drop-shadow-sm">
             Master Your FPL Season
           </h2>
           <p className="text-lg sm:text-xl text-green-100 mb-8 max-w-2xl mx-auto leading-relaxed">
@@ -124,68 +152,32 @@ export default function Home({ data }) {
       {/* Main Content */}
       <div className="grow max-w-6xl mx-auto px-4 sm:px-6 -mt-10 relative z-20 pb-12">
         {/* Status Banner */}
-        {currentGW && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-1 mb-10 border border-gray-100 dark:border-slate-700">
-            <div className="bg-slate-900 text-white p-6 rounded-xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
-              <div className="absolute right-0 top-0 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-
-              {/* Left Side: GW Title */}
-              <div className="flex items-center gap-4 z-10 w-full md:w-auto">
-                <div className="bg-green-500 p-3 rounded-lg text-slate-900 shrink-0">
-                  <Calendar size={28} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">
-                    Current Status
-                  </h3>
-                  <div className="text-2xl font-black whitespace-nowrap">
-                    Gameweek {currentGW.id}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Side: Countdown or Live Badge */}
-              <div className="z-10 w-full md:w-auto flex justify-center md:justify-end">
-                {currentGW.is_current ? (
-                  // If Currently Playing: Show LIVE badge
-                  <div className="px-6 py-3 rounded-full bg-green-500/20 text-green-400 border border-green-500/50 animate-pulse font-black tracking-widest flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    LIVE NOW
-                  </div>
-                ) : nextGW ? (
-                  // If Not Playing: Show Countdown to Next GW
-                  <div className="flex flex-col items-end">
-                    <div className="text-xs text-gray-400 uppercase font-bold mb-1 flex items-center gap-1">
-                      <Clock size={12} /> Deadline: GW{nextGW.id}
-                    </div>
-                    <div className="flex items-center gap-2 sm:gap-4 text-center">
-                      {[
-                        { label: "D", value: timeLeft.days },
-                        { label: "H", value: timeLeft.hours },
-                        { label: "M", value: timeLeft.minutes },
-                        { label: "S", value: timeLeft.seconds },
-                      ].map((item, idx) => (
-                        <div key={idx} className="flex flex-col">
-                          <div className="bg-slate-800 border border-slate-700 w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center text-xl sm:text-2xl font-mono font-bold text-white shadow-inner">
-                            {pad(item.value)}
-                          </div>
-                          <span className="text-[10px] text-gray-500 font-bold mt-1">
-                            {item.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  // End of Season Fallback
-                  <div className="text-gray-400 font-bold">
-                    Season Completed
-                  </div>
-                )}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 mb-10 border border-gray-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
+          {/* Left: Current Status Info */}
+          <div className="flex items-center gap-4">
+            <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-xl text-green-600 dark:text-green-400">
+              <Calendar size={24} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Current Status
+              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">
+                  Gameweek {currentGW?.id || "N/A"}
+                </p>
               </div>
             </div>
           </div>
-        )}
+
+          {/* Right: Live Badge (only if active) */}
+          {currentGW?.is_current && (
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/30 animate-pulse font-bold text-xs sm:text-sm tracking-wide">
+              <span className="w-2 h-2 rounded-full bg-red-600"></span>
+              MATCHES LIVE
+            </div>
+          )}
+        </div>
 
         {/* Feature Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
