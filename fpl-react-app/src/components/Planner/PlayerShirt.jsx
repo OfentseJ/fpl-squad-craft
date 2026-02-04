@@ -51,7 +51,7 @@ export default function PlayerShirt({
   if (fixtures && fixtures.length > 0) {
     // 1. Get all fixtures for this player's team
     const teamFixtures = fixtures.filter(
-      (f) => f.team_h === player.team || f.team_a === player.team
+      (f) => f.team_h === player.team || f.team_a === player.team,
     );
 
     let activeFixtures = [];
