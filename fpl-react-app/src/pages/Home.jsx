@@ -186,6 +186,7 @@ export default function Home({ data }) {
               </div>
             )}
           </div>
+
           {!loadingFixtures && (
             <MatchTracker
               fixtures={fixtures}
