@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getCurrentGameweek } from "../utils/FplUtils";
 import LoadingSkeleton from "../components/Skeletons/LoadingSkeleton";
 import ErrorDisplay from "../components/ErrorDisplay";
@@ -8,39 +9,29 @@ import { Trophy, Users, TrendingUp, Star, AlertCircle } from "lucide-react";
 import LiveSkeleton from "../components/Skeletons/LiveSkeleton";
 
 export default function Live({ data }) {
-  const [livePlayers, setLivePlayers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // 1. Destructure getPlayerImageUrl from your hook
   const { getLive, getPlayerImageUrl } = useFPLApi();
 
   const currentGW = getCurrentGameweek(data?.events);
 
-  useEffect(() => {
-    if (!currentGW?.id || !data?.elements) return;
+  const { data: liveData, isLoading: loading, error: liveError } = useQuery({
+    queryKey: ["live", currentGW?.id],
+    queryFn: () => getLive(currentGW.id),
+    enabled: !!currentGW?.id && !!data?.elements,
+  });
 
-    setLoading(true);
-    setError(null);
+  const error = liveError ? liveError.message : null;
 
-    getLive(currentGW.id)
-      .then((live) => {
-        const merged = Object.values(live.elements)
-          .map((p) => ({
-            ...p,
-            info: data.elements.find((pl) => pl.id === p.id),
-          }))
-          .filter((p) => p.info)
-          .sort((a, b) => b.stats.total_points - a.stats.total_points);
-
-        setLivePlayers(merged);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, [currentGW?.id, data?.elements, getLive]);
+  const livePlayers = useMemo(() => {
+    if (!liveData || !data?.elements) return [];
+    
+    return Object.values(liveData.elements)
+      .map((p) => ({
+        ...p,
+        info: data.elements.find((pl) => pl.id === p.id),
+      }))
+      .filter((p) => p.info)
+      .sort((a, b) => b.stats.total_points - a.stats.total_points);
+  }, [liveData, data?.elements]);
 
   const widgets = useMemo(() => {
     if (!livePlayers.length) return null;

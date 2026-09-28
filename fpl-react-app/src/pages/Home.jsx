@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp,
   Activity,
@@ -16,27 +17,13 @@ import MatchTracker from "../components/MatchTracker";
 
 export default function Home({ data }) {
   const { getFixtures } = useFPLApi();
-  const [fixtures, setFixtures] = useState([]);
-  const [loadingFixtures, setLoadingFixtures] = useState(true);
+  const { data: fixtures = [], isLoading: loadingFixtures } = useQuery({
+    queryKey: ["fixtures"],
+    queryFn: getFixtures,
+  });
 
   const currentGW = getCurrentGameweek(data?.events);
   const nextGW = data?.events?.find((e) => e.is_next);
-
-  // --- 1. Fetch Fixtures on Mount ---
-  useEffect(() => {
-    const fetchFixtures = async () => {
-      try {
-        const fixturesData = await getFixtures();
-        setFixtures(fixturesData);
-      } catch (error) {
-        console.error("Error fetching fixtures:", error);
-      } finally {
-        setLoadingFixtures(false);
-      }
-    };
-
-    fetchFixtures();
-  }, [getFixtures]);
 
   // --- Countdown Logic ---
   const [hoursLeft, setHoursLeft] = useState(null);

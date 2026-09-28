@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   X,
   ArrowLeftRight,
@@ -43,9 +44,6 @@ export default function PlayerDetailModal({
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState("fixtures");
-  const [historyData, setHistoryData] = useState(null);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
   const positionMap = {
     1: "Goalkeeper",
     2: "Defender",
@@ -100,20 +98,11 @@ export default function PlayerDetailModal({
   });
 
   // --- History Fetch Logic ---
-  useEffect(() => {
-    if (isExpanded && activeTab === "history" && !historyData) {
-      setLoadingHistory(true);
-      getPlayerHistory(player.id)
-        .then((data) => {
-          if (data) setHistoryData(data);
-          setLoadingHistory(false);
-        })
-        .catch((err) => {
-          console.error(err);
-          setLoadingHistory(false);
-        });
-    }
-  }, [isExpanded, activeTab, player.id, historyData, getPlayerHistory]);
+  const { data: historyData, isLoading: loadingHistory } = useQuery({
+    queryKey: ["playerHistory", player.id],
+    queryFn: () => getPlayerHistory(player.id),
+    enabled: isExpanded && activeTab === "history",
+  });
 
   const handleAddClick = () => {
     const wasAdded = onAdd(player);

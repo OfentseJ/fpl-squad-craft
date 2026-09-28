@@ -1,5 +1,5 @@
 import { Routes, Route, HashRouter } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Navbar from "./components/Navbar";
 import LoadingSkeleton from "./components/Skeletons/LoadingSkeleton";
 import TrendSkeleton from "./components/Skeletons/TrendSkeleton";
@@ -13,28 +13,17 @@ import GlobalSkeleton from "./components/Skeletons/GlobalSkeleton";
 import LiveSkeleton from "./components/Skeletons/LiveSkeleton";
 
 export default function App() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   const { getBootstrap } = useFPLApi();
 
-  useEffect(() => {
-    getBootstrap()
-      .then((data) => {
-        setData(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, [getBootstrap]);
+  const { data, isLoading: loading, error } = useQuery({
+    queryKey: ["bootstrap"],
+    queryFn: getBootstrap,
+  });
 
   // If there is a critical error, we still block the UI
   if (error) {
     return (
-      <ErrorDisplay message={error} retry={() => window.location.reload()} />
+      <ErrorDisplay message={error.message || "Failed to load FPL data"} retry={() => window.location.reload()} />
     );
   }
 
