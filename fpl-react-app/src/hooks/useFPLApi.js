@@ -1,61 +1,34 @@
-import { useRef, useCallback } from "react";
+import { useCallback } from "react";
 import liverpoolBadge from "../assets/badges/liverpool.webp";
 
 export function useFPLApi() {
-  const cache = useRef({});
-
-  const isProduction = import.meta.env.PROD;
-
-  const CORS_PROXY = isProduction
-    ? "/api/proxy?url="
-    : "https://corsproxy.io/?";
-
-  const fetchWithCache = useCallback(
-    async (key, url) => {
-      if (cache.current[key]) return cache.current[key];
-
+  const fetchFPL = useCallback(
+    async (endpoint) => {
       try {
-        const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+        const response = await fetch(endpoint);
         if (!response.ok) throw new Error("API request failed");
-
-        const data = await response.json();
-
-        cache.current[key] = data;
-
-        return data;
+        return await response.json();
       } catch (error) {
         console.error("API Error:", error);
         throw error;
       }
     },
-    [CORS_PROXY],
+    [],
   );
 
   const getBootstrap = useCallback(
-    () =>
-      fetchWithCache(
-        "bootstrap",
-        "https://fantasy.premierleague.com/api/bootstrap-static/",
-      ),
-    [fetchWithCache],
+    () => fetchFPL("/fpl-api/bootstrap-static/"),
+    [fetchFPL],
   );
 
   const getLive = useCallback(
-    (gw) =>
-      fetchWithCache(
-        "live-" + gw,
-        `https://fantasy.premierleague.com/api/event/${gw}/live/`,
-      ),
-    [fetchWithCache],
+    (gw) => fetchFPL(`/fpl-api/event/${gw}/live/`),
+    [fetchFPL],
   );
 
   const getFixtures = useCallback(
-    () =>
-      fetchWithCache(
-        "fixtures",
-        "https://fantasy.premierleague.com/api/fixtures/",
-      ),
-    [fetchWithCache],
+    () => fetchFPL("/fpl-api/fixtures/"),
+    [fetchFPL],
   );
 
   const getShirtUrl = useCallback((team, isGK) => {
@@ -80,8 +53,8 @@ export function useFPLApi() {
   const importUserTeam = useCallback(
     async (teamId, gameweek) => {
       try {
-        const url = `https://fantasy.premierleague.com/api/entry/${teamId}/event/${gameweek}/picks/`;
-        const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+        const url = `/fpl-api/entry/${teamId}/event/${gameweek}/picks/`;
+        const response = await fetch(url);
 
         if (!response.ok) {
           throw new Error(
@@ -96,14 +69,14 @@ export function useFPLApi() {
         throw error;
       }
     },
-    [CORS_PROXY],
+    [],
   );
 
   const getUserTeamInfo = useCallback(
     async (teamId) => {
       try {
-        const url = `https://fantasy.premierleague.com/api/entry/${teamId}/`;
-        const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+        const url = `/fpl-api/entry/${teamId}/`;
+        const response = await fetch(url);
 
         if (!response.ok) {
           throw new Error("Failed to fetch team info.");
@@ -116,14 +89,14 @@ export function useFPLApi() {
         throw error;
       }
     },
-    [CORS_PROXY],
+    [],
   );
 
   const getEntryHistory = useCallback(
     async (teamId) => {
       try {
-        const url = `https://fantasy.premierleague.com/api/entry/${teamId}/history/`;
-        const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+        const url = `/fpl-api/entry/${teamId}/history/`;
+        const response = await fetch(url);
 
         if (!response.ok) {
           throw new Error("Failed to fetch team history.");
@@ -136,17 +109,13 @@ export function useFPLApi() {
         throw error;
       }
     },
-    [CORS_PROXY],
+    [],
   );
 
   // --- NEW FUNCTION ADDED HERE ---
   const getPlayerHistory = useCallback(
-    (playerId) =>
-      fetchWithCache(
-        `player-history-${playerId}`,
-        `https://fantasy.premierleague.com/api/element-summary/${playerId}/`,
-      ),
-    [fetchWithCache],
+    (playerId) => fetchFPL(`/fpl-api/element-summary/${playerId}/`),
+    [fetchFPL],
   );
 
   return {

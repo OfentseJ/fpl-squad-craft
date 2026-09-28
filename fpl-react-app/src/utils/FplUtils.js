@@ -7,6 +7,16 @@ export function getCurrentGameweek(events) {
   return current || next || events[0];
 }
 
+const mapStrength = (fdrValue) => {
+  // FPL zeroed out specific attack/defense strengths and uses 1-5 FDR for overall
+  // We map the 1-5 value back to the approximate ELO scale used in calculations
+  if (fdrValue >= 5) return 1300;
+  if (fdrValue === 4) return 1200;
+  if (fdrValue === 3) return 1050; // LEAGUE_AVG_STRENGTH
+  if (fdrValue === 2) return 950;
+  return 900;
+};
+
 export const calculateCleanSheetProbability = (team, opponent, isHome) => {
   if (!team || !opponent) return 0;
 
@@ -17,12 +27,12 @@ export const calculateCleanSheetProbability = (team, opponent, isHome) => {
   const baseLeagueGoals = isHome ? AVG_GOALS_AWAY : AVG_GOALS_HOME;
 
   const oppAttackStrength = isHome
-    ? opponent.strength_attack_away
-    : opponent.strength_attack_home;
+    ? (opponent.strength_attack_away || mapStrength(opponent.strength_overall_away))
+    : (opponent.strength_attack_home || mapStrength(opponent.strength_overall_home));
 
   const teamDefStrength = isHome
-    ? team.strength_defence_home
-    : team.strength_defence_away;
+    ? (team.strength_defence_home || mapStrength(team.strength_overall_home))
+    : (team.strength_defence_away || mapStrength(team.strength_overall_away));
 
   const xGC =
     baseLeagueGoals *
@@ -117,14 +127,14 @@ export const getRankedAttacks = (teams, fixtures, startGw) => {
 
         // Get My Attack Strength (Home vs Away)
         const myAttackStrength = isHome
-          ? team.strength_attack_home
-          : team.strength_attack_away;
+          ? (team.strength_attack_home || mapStrength(team.strength_overall_home))
+          : (team.strength_attack_away || mapStrength(team.strength_overall_away));
 
         // Get Opponent Defence Strength
         // (If I am Home, they are Away, so use their Def Away strength)
         const oppDefenseStrength = isHome
-          ? opponent.strength_defence_away
-          : opponent.strength_defence_home;
+          ? (opponent.strength_defence_away || mapStrength(opponent.strength_overall_away))
+          : (opponent.strength_defence_home || mapStrength(opponent.strength_overall_home));
 
         // Calculate Ratio
         // Ratio > 1.0 means my attack is better than their defense

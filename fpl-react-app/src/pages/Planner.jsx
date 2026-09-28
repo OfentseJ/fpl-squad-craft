@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Save,
   RotateCcw,
@@ -93,7 +94,6 @@ export default function Planner({ data }) {
   const [view, setView] = useState("pitch");
   const [positionFilter, setPositionFilter] = useState("all");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
-  const [fixtures, setFixtures] = useState([]);
 
   const [currentActualGw, setCurrentActualGw] = useState(() => {
     const gwEvent = getCurrentGameweek(data?.events);
@@ -114,9 +114,10 @@ export default function Planner({ data }) {
   const [isPGModalOpen, setIsPGModalOpen] = useState(false);
 
   // --- INITIALIZATION ---
-  useEffect(() => {
-    getFixtures().then((data) => setFixtures(data));
-  }, [getFixtures]);
+  const { data: fixtures = [] } = useQuery({
+    queryKey: ["fixtures"],
+    queryFn: getFixtures,
+  });
 
   useEffect(() => {
     if (data?.events) {
