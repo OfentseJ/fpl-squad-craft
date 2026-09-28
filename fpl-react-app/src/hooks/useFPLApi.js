@@ -2,10 +2,12 @@ import { useCallback } from "react";
 import liverpoolBadge from "../assets/badges/liverpool.webp";
 
 export function useFPLApi() {
+  const PROXY_ENDPOINT = "/api/proxy?url=";
+
   const fetchFPL = useCallback(
-    async (endpoint) => {
+    async (url) => {
       try {
-        const response = await fetch(endpoint);
+        const response = await fetch(PROXY_ENDPOINT + encodeURIComponent(url));
         if (!response.ok) throw new Error("API request failed");
         return await response.json();
       } catch (error) {
@@ -17,17 +19,17 @@ export function useFPLApi() {
   );
 
   const getBootstrap = useCallback(
-    () => fetchFPL("/fpl-api/bootstrap-static/"),
+    () => fetchFPL("https://fantasy.premierleague.com/api/bootstrap-static/"),
     [fetchFPL],
   );
 
   const getLive = useCallback(
-    (gw) => fetchFPL(`/fpl-api/event/${gw}/live/`),
+    (gw) => fetchFPL(`https://fantasy.premierleague.com/api/event/${gw}/live/`),
     [fetchFPL],
   );
 
   const getFixtures = useCallback(
-    () => fetchFPL("/fpl-api/fixtures/"),
+    () => fetchFPL("https://fantasy.premierleague.com/api/fixtures/"),
     [fetchFPL],
   );
 
@@ -53,8 +55,8 @@ export function useFPLApi() {
   const importUserTeam = useCallback(
     async (teamId, gameweek) => {
       try {
-        const url = `/fpl-api/entry/${teamId}/event/${gameweek}/picks/`;
-        const response = await fetch(url);
+        const url = `https://fantasy.premierleague.com/api/entry/${teamId}/event/${gameweek}/picks/`;
+        const response = await fetch(PROXY_ENDPOINT + encodeURIComponent(url));
 
         if (!response.ok) {
           throw new Error(
@@ -75,8 +77,8 @@ export function useFPLApi() {
   const getUserTeamInfo = useCallback(
     async (teamId) => {
       try {
-        const url = `/fpl-api/entry/${teamId}/`;
-        const response = await fetch(url);
+        const url = `https://fantasy.premierleague.com/api/entry/${teamId}/`;
+        const response = await fetch(PROXY_ENDPOINT + encodeURIComponent(url));
 
         if (!response.ok) {
           throw new Error("Failed to fetch team info.");
@@ -95,8 +97,8 @@ export function useFPLApi() {
   const getEntryHistory = useCallback(
     async (teamId) => {
       try {
-        const url = `/fpl-api/entry/${teamId}/history/`;
-        const response = await fetch(url);
+        const url = `https://fantasy.premierleague.com/api/entry/${teamId}/history/`;
+        const response = await fetch(PROXY_ENDPOINT + encodeURIComponent(url));
 
         if (!response.ok) {
           throw new Error("Failed to fetch team history.");
@@ -114,7 +116,7 @@ export function useFPLApi() {
 
   // --- NEW FUNCTION ADDED HERE ---
   const getPlayerHistory = useCallback(
-    (playerId) => fetchFPL(`/fpl-api/element-summary/${playerId}/`),
+    (playerId) => fetchFPL(`https://fantasy.premierleague.com/api/element-summary/${playerId}/`),
     [fetchFPL],
   );
 
